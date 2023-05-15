@@ -23,13 +23,13 @@ lib.evalModules {
             # description = "";
           };
           sysModules = mkOption {
-            type = with types; listOf path;
+            type = with types; listOf deferredModule;
             default = [];
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
           };
           sysTopLevelModules = mkOption {
-            type = with types; listOf path;
+            type = with types; listOf deferredModule;
             default = [];
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
@@ -43,7 +43,7 @@ lib.evalModules {
           };
 
           homeModules = mkOption {
-            type = with types; listOf path;
+            type = with types; listOf raw;
             default = [];
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";

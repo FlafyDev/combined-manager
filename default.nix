@@ -38,8 +38,7 @@
           pkgs = {};
           config = {};
           inherit (inputs.nixpkgs) lib;
-          inherit modules;
-          inputs = {};
+          inherit modules inputs;
         })
         .config)
       sysTopLevelModules
@@ -52,8 +51,6 @@
         sysTopLevelModules
         ++ [
           inputs.home-manager.nixosModules.home-manager
-          {
-          }
           ({
             pkgs,
             lib,
@@ -73,11 +70,8 @@
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
                 home-manager.extraSpecialArgs = {inherit inputs;};
-                home-manager.users.${res.home.home.username} = _:
-                  {
-                    imports = res.homeModules;
-                  }
-                  // res.home;
+                home-manager.sharedModules = res.homeModules;
+                home-manager.users.${res.home.home.username} = _: res.home;
               }
               // res.sys;
           })
