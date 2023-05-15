@@ -6,19 +6,13 @@
   inputs,
 }:
 lib.evalModules {
-  # description = "Combined Manager module";
   specialArgs = {
     inherit pkgs lib inputs;
-    sysConfig = config;
     modulesPath = builtins.toString ./modules;
   };
   modules =
     [
-      ({
-        lib,
-        config,
-        ...
-      }: let
+      ({lib, ...}: let
         inherit (lib) mkOption types;
       in {
         options = {
@@ -40,15 +34,27 @@ lib.evalModules {
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
           };
+
+          home = mkOption {
+            type = with types; attrs;
+            default = {};
+            # example = literalExpression "[ pkgs.vim ]";
+            # description = "";
+          };
+
+          homeModules = mkOption {
+            type = with types; listOf path;
+            default = [];
+            # example = literalExpression "[ pkgs.vim ]";
+            # description = "";
+          };
+
           inputs = mkOption {
             type = with types; attrs;
             default = {};
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
           };
-        };
-
-        config = {
         };
       })
     ]
