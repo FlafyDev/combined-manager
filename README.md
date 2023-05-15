@@ -9,9 +9,10 @@
 - Need to call `nix flake` commands with `?submodules=1`.
 
 ## Setup
-1. Generate a template with `nix flake init -t TODO#templates.example` into a git repository.
+0. Patch Nix with the patches in the `nix-patches` directory.
+1. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example` into a git repository.
 2. Run `git submodule add git@github.com:FlafyDev/combined-manager.git`
-3. Patch Nix with the Combined Manager patchset.
+3. Run `git add .`
 4. Run `nix flake metadata "git+file://$(pwd)?submodules=1"` twice if there is no `flake.lock` file ().
 
 ## Running

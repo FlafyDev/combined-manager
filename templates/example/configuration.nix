@@ -13,7 +13,7 @@
   sys = {
     nixpkgs.overlays = [
       (_final: prev: {
-        customVim = prev.neovim;
+        customCat = prev.bat;
       })
     ];
     users.users.root = {
@@ -28,10 +28,10 @@
     };
     users.mutableUsers = false;
   };
-  sys.programs.vim.defaultEditor = true;
+  sys.programs.vim.defaultEditor = false;
   sys.environment.systemPackages = with pkgs;
-    lib.mkIf config.sys.programs.vim.defaultEditor [
-      customVim
+    lib.mkIf (!config.sys.programs.vim.defaultEditor) [
+      customCat
     ];
   home.home.username = "a";
   home.xdg.configFile."somebody.txt".text = "once told me";
