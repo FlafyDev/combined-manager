@@ -13,7 +13,7 @@
 1. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example` into a git repository.
 2. Run `git submodule add git@github.com:FlafyDev/combined-manager.git`
 3. Run `git add .`
-4. Run `nix flake metadata "git+file://$(pwd)?submodules=1"` twice if there is no `flake.lock` file ().
+4. Run `nix flake metadata ".?submodules=1"` twice if there is no `flake.lock` file ().
 
 ## Running
-To bulid a VM: `nixos-rebuild build-vm --flake "git+file://$(pwd)?submodules=1"#default`.
+To bulid a VM: `nixos-rebuild build-vm --flake ".?submodules=1"#default`.
