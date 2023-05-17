@@ -10,12 +10,12 @@
   sysTopLevelModules = [
     ./hardware-configuration.nix
   ];
+  nixpkgs.overlays = [
+    (_final: prev: {
+      customCat = prev.bat;
+    })
+  ];
   sys = {
-    nixpkgs.overlays = [
-      (_final: prev: {
-        customCat = prev.bat;
-      })
-    ];
     users.users.root = {
       group = "root";
       password = "root";

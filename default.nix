@@ -46,7 +46,6 @@
   in
     inputs.nixpkgs.lib.nixosSystem {
       inherit system;
-      specialArgs = {inherit inputs;};
       modules =
         sysTopLevelModules
         ++ [
@@ -55,23 +54,31 @@
             pkgs,
             lib,
             config,
-            inputs,
+            options,
             ...
           }: let
             res =
               (import ./entry.nix {
-                inherit pkgs lib config inputs modules;
+                inherit pkgs lib config inputs modules options;
               })
               .config;
           in {
             imports = res.sysModules;
             config =
               {
+                _module.args = {
+                  pkgs = lib.mkForce (import inputs.nixpkgs (
+                    (builtins.removeAttrs config.nixpkgs ["localSystem"])
+                    // {
+                      overlays = config.nixpkgs.overlays ++ res.nixpkgs.overlays;
+                      config = config.nixpkgs.config // res.nixpkgs.config;
+                    }
+                  ));
+                };
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
-                home-manager.extraSpecialArgs = {inherit inputs;};
                 home-manager.sharedModules = res.homeModules;
-                home-manager.users.${res.home.home.username} = _: res.home;
+                home-manager.users.${res.home.home.username} = _: {config = res.home;};
               }
               // res.sys;
           })

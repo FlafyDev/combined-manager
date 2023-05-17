@@ -2,6 +2,7 @@
   lib,
   pkgs,
   config,
+  options ? {},
   modules,
   inputs,
 }:
@@ -17,7 +18,7 @@ lib.evalModules {
       in {
         options = {
           sys = mkOption {
-            type = with types; attrs;
+            type = with types; anything;
             default = {};
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
@@ -36,7 +37,7 @@ lib.evalModules {
           };
 
           home = mkOption {
-            type = with types; attrs;
+            type = with types; attrsOf anything;
             default = {};
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
@@ -52,6 +53,26 @@ lib.evalModules {
           inputs = mkOption {
             type = with types; attrs;
             default = {};
+            # example = literalExpression "[ pkgs.vim ]";
+            # description = "";
+          };
+
+          nixpkgs.config = mkOption {
+            type = with types;
+              if options ? nixpkgs
+              then options.nixpkgs.config.type
+              else attrs;
+            default = {};
+            # example = literalExpression "[ pkgs.vim ]";
+            # description = "";
+          };
+
+          nixpkgs.overlays = mkOption {
+            type = with types;
+              if options ? nixpkgs
+              then options.nixpkgs.overlays.type
+              else listOf anything;
+            default = [];
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
           };
