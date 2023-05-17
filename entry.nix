@@ -15,20 +15,21 @@ lib.evalModules {
     [
       ({lib, ...}: let
         inherit (lib) mkOption types;
+        moreTypes = import ./types.nix { inherit lib; };
       in {
         options = {
           sys = mkOption {
-            type = with types; anything;
+            type = moreTypes.anything;
             default = {};
-            # example = literalExpression "[ pkgs.vim ]";
-            # description = "";
           };
+
           sysModules = mkOption {
             type = with types; listOf deferredModule;
             default = [];
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
           };
+
           sysTopLevelModules = mkOption {
             type = with types; listOf deferredModule;
             default = [];
@@ -37,7 +38,7 @@ lib.evalModules {
           };
 
           home = mkOption {
-            type = with types; attrsOf anything;
+            type = moreTypes.anything;
             default = {};
             # example = literalExpression "[ pkgs.vim ]";
             # description = "";
