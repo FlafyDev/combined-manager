@@ -5,17 +5,19 @@
   options ? {},
   modules,
   inputs,
+  osConfig ? {},
 }:
 lib.evalModules {
   specialArgs = {
     inherit pkgs lib inputs;
+    sysConfig = config;
     modulesPath = builtins.toString ./modules;
   };
   modules =
     [
       ({lib, ...}: let
         inherit (lib) mkOption types;
-        moreTypes = import ./types.nix { inherit lib; };
+        moreTypes = import ./types.nix {inherit lib;};
       in {
         options = {
           sys = mkOption {
@@ -24,13 +26,6 @@ lib.evalModules {
           };
 
           sysModules = mkOption {
-            type = with types; listOf deferredModule;
-            default = [];
-            # example = literalExpression "[ pkgs.vim ]";
-            # description = "";
-          };
-
-          sysTopLevelModules = mkOption {
             type = with types; listOf deferredModule;
             default = [];
             # example = literalExpression "[ pkgs.vim ]";
