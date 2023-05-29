@@ -29,11 +29,12 @@ in
     };
     modules =
       [
-        # TODO
-        {
-          os.system.nixos.versionSuffix = ".dirty";
-          os.system.nixos.revision = "dirty";
-        }
+        ({lib, ...}: let
+          self = builtins.trace inputs.nixpkgs;
+        in {
+          os.system.nixos.versionSuffix = ".${lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")}.${self.shortRev or "dirty"}";
+          os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
+        })
 
         {
           options = {
@@ -129,100 +130,6 @@ in
             };
           };
         })
-
-        # (_: {
-        #   imports = [
-        #     ({pkgs, ...}: {
-        #       os.nixpkgs.overlays = [
-        #         (final: prev: {
-        #           customVim = prev.vim;
-        #         })
-        #       ];
-        #     })
-        #   ];
-        #
-        #   config = {
-        #     os = builtins.trace utils {
-        #       programs.hyprland.enable = true;
-        #       users.users.root = {
-        #         group = "root";
-        #         password = "root";
-        #         isSystemUser = true;
-        #       };
-        #       users.users.a = {
-        #         group = "a";
-        #         password = "a";
-        #         isNormalUser = true;
-        #       };
-        #       users.mutableUsers = false;
-        #
-        #       # environment.systemPackages = [
-        #       #   pkgs.customVim
-        #       # ];
-        #     };
-        #     hm.home.stateVersion = "22.05";
-        #   };
-        # })
-
-        #   ({lib, ...}: let
-        #     inherit (lib) mkOption types;
-        #     moreTypes = import ./types.nix {inherit lib;};
-        #   in {
-        #     options = {
-        #       sys = mkOption {
-        #         type = moreTypes.anything;
-        #         default = {};
-        #       };
-        #
-        #       sysModules = mkOption {
-        #         type = with types; listOf deferredModule;
-        #         default = [];
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #
-        #       home = mkOption {
-        #         type = moreTypes.anything;
-        #         default = {};
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #
-        #       homeModules = mkOption {
-        #         type = with types; listOf raw;
-        #         default = [];
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #
-        #       inputs = mkOption {
-        #         type = with types; attrs;
-        #         default = {};
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #
-        #       nixpkgs.config = mkOption {
-        #         type = with types;
-        #           if options ? nixpkgs
-        #           then options.nixpkgs.config.type
-        #           else attrs;
-        #         default = {};
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #
-        #       nixpkgs.overlays = mkOption {
-        #         type = with types;
-        #           if options ? nixpkgs
-        #           then options.nixpkgs.overlays.type
-        #           else listOf anything;
-        #         default = [];
-        #         # example = literalExpression "[ pkgs.vim ]";
-        #         # description = "";
-        #       };
-        #     };
-        #   })
       ]
       ++ modules;
   }
