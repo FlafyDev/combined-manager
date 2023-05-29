@@ -1,21 +1,21 @@
 {
   lib,
   pkgs,
-  config,
+  osConfig,
   ...
 }: {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
   };
-  sysTopLevelModules = [
+  osModules = [
     ./hardware-configuration.nix
   ];
-  nixpkgs.overlays = [
+  os.nixpkgs.overlays = [
     (_final: prev: {
       customCat = prev.bat;
     })
   ];
-  sys = {
+  os = {
     users.users.root = {
       group = "root";
       password = "root";
@@ -28,14 +28,14 @@
     };
     users.mutableUsers = false;
   };
-  sys.programs.vim.defaultEditor = false;
-  sys.environment.systemPackages = with pkgs;
-    lib.mkIf (!config.sys.programs.vim.defaultEditor) [
+  os.programs.vim.defaultEditor = false;
+  os.environment.systemPackages = with pkgs;
+    lib.mkIf (!osConfig.programs.vim.defaultEditor) [
       customCat
     ];
-  home.home.username = "a";
-  home.xdg.configFile."somebody.txt".text = "once told me";
+  hm.home.username = "a";
+  hm.xdg.configFile."somebody.txt".text = "once told me";
 
-  home.home.stateVersion = "23.05";
-  sys.system.stateVersion = "23.05";
+  hm.home.stateVersion = "23.05";
+  os.system.stateVersion = "23.05";
 }

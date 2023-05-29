@@ -1,4 +1,6 @@
-{
+let
+  evalModules = import ./eval-modules.nix;
+in {
   mkInputs = {
     root,
     initialInputs,
@@ -14,11 +16,17 @@
     additionalInputs =
       if builtins.pathExists flakeFile
       then
-        (import ./entry.nix {
-          pkgs = {};
-          config = {};
-          inherit lib modules;
-          inputs = {};
+        (evalModules {
+          inherit modules;
+          inputs = {
+            nixpkgs = {
+              inherit lib;
+              inherit (nixpkgsLock) rev;
+              lastModified = toString nixpkgsLock.lastModified;
+              shortRev = builtins.substring 0 7 nixpkgsLock.rev;
+            };
+          };
+          system = builtins.currentSystem;
         })
         .config
         .inputs
@@ -33,55 +41,10 @@
     system,
     modules,
   }: let
-    inherit
-      ((import ./entry.nix {
-          pkgs = {};
-          config = {};
-          inherit (inputs.nixpkgs) lib;
-          inherit modules inputs;
-        })
-        .config)
-      sysTopLevelModules
-      ;
-  in
-    inputs.nixpkgs.lib.nixosSystem {
-      inherit system;
-      modules =
-        sysTopLevelModules
-        ++ [
-          inputs.home-manager.nixosModules.home-manager
-          ({
-            pkgs,
-            lib,
-            config,
-            options,
-            ...
-          }: let
-            res =
-              (import ./entry.nix {
-                inherit pkgs lib config inputs modules options;
-              })
-              .config;
-          in {
-            imports = res.sysModules;
-            config =
-              {
-                _module.args = {
-                  pkgs = lib.mkForce (import inputs.nixpkgs (
-                    (builtins.removeAttrs config.nixpkgs ["localSystem"])
-                    // {
-                      overlays = config.nixpkgs.overlays ++ res.nixpkgs.overlays;
-                      config = config.nixpkgs.config // res.nixpkgs.config;
-                    }
-                  ));
-                };
-                home-manager.useGlobalPkgs = true;
-                home-manager.useUserPackages = true;
-                home-manager.sharedModules = res.homeModules;
-                home-manager.users.${res.home.home.username} = _: {config = res.home;};
-              }
-              // res.sys;
-          })
-        ];
+    inherit ((evalModules {inherit modules inputs system;}).config) osModules;
+
+    evaluated = evalModules {
+      inherit modules inputs osModules system;
     };
+  in {config = evaluated.config.os;};
 }
