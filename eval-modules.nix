@@ -30,7 +30,7 @@ in
     modules =
       [
         ({lib, ...}: let
-          self = builtins.trace inputs.nixpkgs;
+          self = inputs.nixpkgs;
         in {
           os.system.nixos.versionSuffix = ".${lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")}.${self.shortRev or "dirty"}";
           os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
