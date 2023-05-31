@@ -1,5 +1,6 @@
 # Combined Manager
 Combined Manager provides a new structure for personal NixOS configurations.
+###### Note: Requires patching `nix` to solve [this issue](https://github.com/NixOS/nix/issues/3966). See more in the [Setup section](#setup).
 
 ## No separation
 Combined Manager's main feature is to break separation. If you want, you should be able to keep everything in a single module.  
@@ -65,7 +66,7 @@ While I'll use it for my configuraiton, I have not tested everything and cannot 
 There might be breaking changes.
 
 ## Setup
-0. Patch Nix with the patches in the `nix-patches` directory.
+0. Patch Nix with the patches in the `nix-patches` directory. Or use [Nix Super](https://git.privatevoid.net/max/nix-super) (Nix Super was not tested with Combined Manager)
 1. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example` into a git repository.
 2. Run `git submodule add git@github.com:FlafyDev/combined-manager.git`
 3. Run `git add .`
