@@ -1,11 +1,17 @@
-# combined-manager
-Nix config structure
+# Combined Manager
+Combined Manager provides a new structure for personal NixOS configurations.
 
-Combined Manager allows to configure flake inputs, overlays, and home/system configuration inside modules.
-The idea is to avoid separating configurations that relate to the same thing in different files.
+## No separation
+Combined Manager's main feature is to break separation. If you want, you should be able to keep everything in a single module.  
+Most NixOS configuration structures are designed to separate related things into multiple files.  
+
+Most prominent separations:  
+- Dividing modules into system and home categories. These categories are then further maintained in separate files.
+- All flake inputs must be in the same file in flake.nix.
+
+Combined Manager breaks this pattern by allowing modules to add inputs, overlays and Home Manager and Nixpkgs options as if they are simple options.
 
 ## Module options
-Like any module, but with the added options:
 ```nix
 {
   lib,
@@ -19,10 +25,10 @@ Like any module, but with the added options:
     # Adding inputs
     inputs = { name.url = "..."; };
 
-    # Adding top level system modules
+    # Importing system modules
     osModules = [ ];
 
-    # Adding home modules
+    # Importing Home Manager modules
     hmModules = [ ];
 
     # Setting overlays
@@ -40,12 +46,15 @@ Like any module, but with the added options:
 }
 ```
 
-## Usage in Nix configs
+## Examples
+#### Full configurations
 - https://github.com/FlafyDev/nixos-config
+#### Modules
+- https://github.com/FlafyDev/nixos-config/blob/main/modules/display/hyprland/default.nix
+
 
 ## Current limitations
-- Only a single users with Home Manager.
-- Home Manager required.
+- Home Manager required and only a single user with Home Manager.
 - Nix must be patched for input evaluation. (1 line diff)
 - Only for NixOS.
 - Need to call `nix flake` commands with `?submodules=1`.
@@ -53,7 +62,7 @@ Like any module, but with the added options:
 ## Stability
 As of the time of writing, stable _enough_.  
 While I'll use it for my configuraiton, I have not tested everything and cannot guarantee stability.  
-Expect breaking changes.
+There might be breaking changes.
 
 ## Setup
 0. Patch Nix with the patches in the `nix-patches` directory.
