@@ -66,7 +66,7 @@ While I'll use it for my configuraiton, I have not tested everything and cannot 
 There might be breaking changes.
 
 ## Setup
-0. Patch Nix with the patches in the `nix-patches` directory. Or use [Nix Super](https://git.privatevoid.net/max/nix-super) (Nix Super was not tested with Combined Manager)
+0. Patch Nix with the patches in the `nix-patches` directory. Or use [Nix Super](https://git.privatevoid.net/max/nix-super)
 1. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example` into a git repository.
 2. Run `git submodule add git@github.com:FlafyDev/combined-manager.git`
 3. Run `git add .`
