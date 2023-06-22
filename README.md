@@ -158,7 +158,7 @@ nix = {
       ++ (
         map
         (file: "${../../combined-manager/nix-patches}/${file}")
-        (lib.attrNames (builtins.readDir "${../../combined-manager/nix-patches}"))
+        (lib.attrNames (builtins.readDir ../../combined-manager/nix-patches))
       );
   });
 };
