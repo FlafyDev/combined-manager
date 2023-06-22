@@ -1,8 +1,10 @@
 {
   description = "Combined Manager";
 
-  outputs = {self}: {
-    templates = {
+  outputs = _: {
+    inherit (import ./.) nixosSystem evaluateInputs;
+
+    templates = rec {
       bare = {
         path = ./templates/bare;
         description = "A bare nixos config using Combined Manager.";
@@ -13,8 +15,7 @@
         description = "An example nixos config using Combined Manager.";
         welcomeText = builtins.readFile ./README.md;
       };
+      default = example;
     };
-
-    templates.default = self.templates.example;
   };
 }

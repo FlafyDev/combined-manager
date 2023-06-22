@@ -1,21 +1,22 @@
 let
   evalModules = import ./eval-modules.nix;
 in {
-  mkInputs = {
-    root,
-    initialInputs,
+  evaluateInputs = {
+    lockFile,
     modules,
+    initialInputs,
   }: let
-    flakeFile = root + "/flake.lock";
-    nixpkgsLock = (builtins.fromJSON (builtins.readFile flakeFile)).nodes.nixpkgs.locked;
-    lib = import ((builtins.fetchTarball {
-        url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgsLock.rev}.tar.gz";
-        sha256 = nixpkgsLock.narHash;
-      })
-      + "/lib");
-    additionalInputs =
-      if builtins.pathExists flakeFile
-      then
+    inherit ((builtins.fromJSON (builtins.readFile lockFile))) nodes;
+    evaluatedInputs =
+      if (builtins.pathExists lockFile && nodes ? nixpkgs)
+      then let
+        nixpkgsLock = nodes.nixpkgs.locked;
+        lib = import ((builtins.fetchTarball {
+            url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgsLock.rev}.tar.gz";
+            sha256 = nixpkgsLock.narHash;
+          })
+          + "/lib");
+      in
         (evalModules {
           inherit modules;
           inputs = {
@@ -30,13 +31,13 @@ in {
         })
         .config
         .inputs
-      else {};
+      else builtins.trace "[1;31mInputs need to be evaluated again.[0m" {};
   in
     assert builtins.elem "nixpkgs" (builtins.attrNames initialInputs) || throw "nixpkgs input not found in initialInputs" {};
     assert builtins.elem "home-manager" (builtins.attrNames initialInputs) || throw "home-manager input not found in initialInputs" {};
-      additionalInputs // initialInputs;
+      evaluatedInputs // initialInputs;
 
-  mkNixosSystem = {
+  nixosSystem = {
     inputs,
     system,
     modules,
