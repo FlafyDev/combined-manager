@@ -96,8 +96,7 @@ To swtich: `sudo nixos-rebuild switch --flake .#default`.
 
 ## Nix Patches 
 Combined Manager requires applying certain patches to Nix in order to work.  
-See the `nix-patches/nix-super` patches if you're using [Nix Super](https://git.privatevoid.net/max/nix-super).  
-You can get away without patching Nix Super by duplicating the let on the entire flake to both `inputs` and `outputs`.  
+Alternatively, you can use [Nix Super](https://git.privatevoid.net/max/nix-super).  
 
 #### Required: evaluable-flake.patch (2 line diff)
 This patch enables inputs(and the entire flake) to be evaluable. Solves [issue #3966](https://github.com/NixOS/nix/issues/3966).  
@@ -133,7 +132,7 @@ nix = {
 };
 ```
 
-Once you start using Combined Manager, you'll be able to source the patches directly from your combined-manager.
+Once you start using Combined Manager, you'll be able to source the patches directly from your `combinedManager` module arg.
 
 #### Why does Combined Manager need to evaluate inputs?
 Each Combined Manager module has an `inputs` option. That option will eventually be merged and set as the inputs of the NixOS configuration.
