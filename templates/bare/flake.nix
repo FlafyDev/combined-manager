@@ -1,35 +1,26 @@
-{
+let
+  combinedManager = import (builtins.fetchTarball {
+    url = "https://github.com/flafydev/combined-manager/archive/72e48d8eb0580c1c81ade98bdba3d0bb30d9fcfd.tar.gz";
+    sha256 = "sha256:1xns8yfy7hwdjqdvaj2kqrwykmy61jhdfs8rn2dqm6pq35bgf3ah";
+  });
+in {
   description = "NixOS configuration";
 
-  inputs = let
-    evaluatedInputs = let
-      cmLock = (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.combined-manager.locked;
-      combinedManager = import (builtins.fetchTarball {
-        url = "https://github.com/${cmLock.owner}/${cmLock.repo}/archive/${cmLock.rev}.tar.gz";
-        sha256 = cmLock.narHash;
-      });
-    in
-      if (builtins.pathExists ./flake.lock)
-      then
-        combinedManager.evaluateInputs {
-          lockFile = ./flake.lock;
-          modules = [];
-        }
-      else {};
-  in
-    evaluatedInputs
-    // {
+  inputs = combinedManager.evaluateInputs {
+    lockFile = ./flake.lock;
+    modules = [];
+    initialInputs = {
       nixpkgs.url = "github:nixos/nixpkgs";
       home-manager = {
         url = "github:nix-community/home-manager";
         inputs.nixpkgs.follows = "nixpkgs";
       };
-      combined-manager.url = "github:flafydev/combined-manager";
     };
+  };
 
-  outputs = {combined-manager, ...} @ inputs: {
+  outputs = inputs: {
     nixosConfigurations = {
-      default = combined-manager.nixosSystem {
+      default = combinedManager.nixosSystem {
         system = "x86_64-linux";
         inherit inputs;
         modules = [];

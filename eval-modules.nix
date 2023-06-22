@@ -26,6 +26,7 @@ in
   evalModules {
     specialArgs = {
       inherit inputs;
+      combinedManager = ./.;
     };
     modules =
       [
