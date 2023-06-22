@@ -10,7 +10,7 @@
     baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
   in
     types.submoduleWith {
-      description = "Home Manager module";
+      description = "Nixpkgs modules";
       specialArgs = {
         inherit baseModules;
         modulesPath = "${inputs.nixpkgs}/nixos/modules";

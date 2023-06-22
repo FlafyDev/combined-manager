@@ -1,7 +1,7 @@
 let
   combinedManager = import (builtins.fetchTarball {
-    url = "https://github.com/flafydev/combined-manager/archive/72e48d8eb0580c1c81ade98bdba3d0bb30d9fcfd.tar.gz";
-    sha256 = "sha256:1xns8yfy7hwdjqdvaj2kqrwykmy61jhdfs8rn2dqm6pq35bgf3ah";
+    url = "https://github.com/flafydev/combined-manager/archive/9474a2432b47c0e6fa0435eb612a32e28cbd99ea.tar.gz";
+    sha256 = "sha256:04rzv1ajxrcmjybk1agpv4rpwivy7g8mwfms8j3lhn09bqjqrxxf";
   });
 in {
   description = "NixOS configuration";

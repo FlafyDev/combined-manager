@@ -96,15 +96,14 @@ To swtich: `sudo nixos-rebuild switch --flake .#default`.
 
 ## Nix Patches 
 Combined Manager requires applying certain patches to Nix in order to work.  
-See the `nix-patches/nix-super` patches if you're using [Nix Super](https://git.privatevoid.net/max/nix-super).
+See the `nix-patches/nix-super` patches if you're using [Nix Super](https://git.privatevoid.net/max/nix-super).  
+You can get away without patching Nix Super by duplicating the let on the entire flake to both `inputs` and `outputs`.  
 
 #### Required: evaluable-flake.patch (2 line diff)
 This patch enables inputs(and the entire flake) to be evaluable. Solves [issue #3966](https://github.com/NixOS/nix/issues/3966).  
 Combined Manager requires this since it evaluates `inputs` from all the modules.  
 
-TODO
-<!-- See [line 4 of the example flake](https://github.com/FlafyDev/combined-manager/blob/cf13c190cd51cb2d2e408c8bb3ba8398bc9c568c/templates/example/flake.nix#L4).   -->
-
+See [line 9 of the example flake](https://github.com/FlafyDev/combined-manager/blob/9474a2432b47c0e6fa0435eb612a32e28cbd99ea/templates/example/flake.nix#L9).  
 
 ## FAQ
 
@@ -118,8 +117,8 @@ nix = {
     combinedManager = pkgs.fetchFromGitHub {
       owner = "flafydev";
       repo = "combined-manager";
-      rev = "8553bc2051f8228a881b186ce5bb73b5bdbfadf1";
-      sha256 = "sha256-LmIYSpDNBBax5wA0QWYN0lPzULOoA8mIa5I7HGoZNdE=";
+      rev = "9474a2432b47c0e6fa0435eb612a32e28cbd99ea";
+      sha256 = "";
     };
   in
     pkgs.nix.overrideAttrs (old: {
@@ -128,7 +127,7 @@ nix = {
         ++ (
           map
           (file: "${combinedManager}/nix-patches/${file}")
-          (lib.attrNames (builtins.readDir "${combinedManager}/nix-patches"))
+          (lib.attrNames (lib.filterAttrs (_: type: type == "regular") (builtins.readDir "${combinedManager}/nix-patches")))
         );
     });
 };
