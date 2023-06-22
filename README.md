@@ -2,7 +2,7 @@
 Combined Manager provides a new structure for personal NixOS configurations.
 ###### Note: Requires patching `nix` to solve [this issue](https://github.com/NixOS/nix/issues/3966). See more in the [Nix Patches section](#nix-patches).
 
-- [Introduction](#introduction%3A-no-separation)  
+- [Introduction](#introduction-no-separation)  
 - [Module options](#module-options)  
 - [Examples](#examples)  
     - [Full configurations](#full-configurations)  
@@ -11,12 +11,12 @@ Combined Manager provides a new structure for personal NixOS configurations.
 - [Stability](#stability)  
 - [Setup](#setup)  
 - [Nix Patches](#nix-patches)
-  - [evaluable-inputs.patch](#required%3A-evaluable-inputs.patch-(1-line-diff))
-  - [default-submodules-flag.patch](#recommended%3A-default-submodules-flag.patch-(1-line-diff))
+  - [evaluable-inputs.patch](#required-evaluable-inputspatch-1-line-diff)
+  - [default-submodules-flag.patch](#recommended-default-submodules-flagpatch-1-line-diff)
 - [FAQ](#faq)
-  - [I want to get started, but don’t know how to patch Nix.](#i-want-to-get-started%2C-but-don%E2%80%99t-know-how-to-patch-nix.)
-  - [Why does Combined Manager need to evaluate inputs?](#why-does-combined-manager-need-to-evaluate-inputs%3F)
-  - [Why does Combined Manager need to be added as a submodules? Why not import it as a flake?](#why-does-combined-manager-need-to-be-added-as-a-submodules%3F-why-not-import-it-as-a-flake%3F)
+  - [I want to get started, but don’t know how to patch Nix.](#i-want-to-get-started-but-dont-know-how-to-patch-nix)
+  - [Why does Combined Manager need to evaluate inputs?](#why-does-combined-manager-need-to-evaluate-inputs)
+  - [Why does Combined Manager need to be added as a submodules? Why not import it as a flake?](#why-does-combined-manager-need-to-be-added-as-a-submodules-why-not-import-it-as-a-flake)
 
 ## Introduction: No separation
 Combined Manager's main feature is to break separation. If you want, you should be able to keep everything in a single module.  
