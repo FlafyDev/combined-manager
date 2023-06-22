@@ -1,7 +1,7 @@
 let
   evalModules = import ./eval-modules.nix;
 in {
-  mkInputs = {
+  evaluateInputs = {
     lockFile,
     modules,
   }: let
@@ -27,7 +27,7 @@ in {
     .config
     .inputs;
 
-  mkNixosSystem = {
+  nixosSystem = {
     inputs,
     system,
     modules,

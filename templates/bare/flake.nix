@@ -2,25 +2,34 @@
   description = "NixOS configuration";
 
   inputs = let
-    combinedManager = import ./combined-manager;
+    evaluatedInputs =
+      if (builtins.pathExists ./flake.lock)
+      then let
+        cmLock = (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.combined-manager.locked;
+        combinedManager = import (builtins.fetchTarball {
+          url = "https://github.com/${cmLock.owner}/${cmLock.repo}/archive/${cmLock.rev}.tar.gz";
+          sha256 = cmLock.narHash;
+        });
+      in
+        combinedManager.evaluateInputs {
+          lockFile = ./flake.lock;
+          modules = [];
+        }
+      else {};
   in
-    combinedManager.mkInputs {
-      root = ./.;
-      initialInputs = {
-        nixpkgs.url = "github:nixos/nixpkgs";
-        home-manager = {
-          url = "github:nix-community/home-manager";
-          inputs.nixpkgs.follows = "nixpkgs";
-        };
+    evaluatedInputs
+    // {
+      nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+      home-manager = {
+        url = "github:nix-community/home-manager";
+        inputs.nixpkgs.follows = "nixpkgs";
       };
-      modules = [];
+      combined-manager.url = "github:flafydev/combined-manager";
     };
 
-  outputs = inputs: let
-    combinedManager = import ./combined-manager;
-  in {
+  outputs = {combined-manager, ...} @ inputs: {
     nixosConfigurations = {
-      default = combinedManager.mkNixosSystem {
+      default = combined-manager.nixosSystem {
         system = "x86_64-linux";
         inherit inputs;
         modules = [];
