@@ -173,3 +173,12 @@ If Combined Manager was to be imported as a flake input, it wouldn't be possible
 
 See [line 7 of the example flake](https://github.com/FlafyDev/combined-manager/blob/cf13c190cd51cb2d2e408c8bb3ba8398bc9c568c/templates/example/flake.nix#LL7C4-L7C4).
 
+#### Can't `nix flake show` a Combined Manager config from Github.
+`nix flake show "github:flafydev/nixos-config"` will download an archive of the nixos-config repository from Github.  
+And because [Github archives do not provide submodules](https://github.com/dear-github/dear-github/issues/214), nix will not be able to evaluate this repository as it is missing the combined-manager submodule.
+
+As a workaround, do `nix flake show "git+https://github.com/FlafyDev/nixos-config.git?submodules=1"` instead.
+
+#### I don't want to add combined-manager as a submodule, are there any other options?
+Yes.  
+One option would be to add combined-manager as a git subtree instead.
