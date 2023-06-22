@@ -1,0 +1,12 @@
+diff --git a/src/libexpr/flake/flakeref.cc b/src/libexpr/flake/flakeref.cc
+index 08adbe0..12e979a 100644
+--- a/src/libexpr/flake/flakeref.cc
++++ b/src/libexpr/flake/flakeref.cc
+@@ -165,6 +165,7 @@ std::pair<FlakeRef, std::string> parseFlakeRefWithFragment(
+                             .path = flakeRoot,
+                             .query = decodeQuery(match[2]),
+                         };
++                        if (!parsedURL.query.count("submodules")) parsedURL.query["submodules"] = "1";
+ 
+                         if (subdir != "") {
+                             if (parsedURL.query.count("dir"))
