@@ -128,20 +128,23 @@ You can add the following to your config:
 ```nix
 nix = {
   enable = true;
-  package = let 
-    combined-manager = pkgs.fetchFromGitHub {
+  package = let
+    combinedManager = pkgs.fetchFromGitHub {
       owner = "flafydev";
       repo = "combined-manager";
-      rev = "cf13c190cd51cb2d2e408c8bb3ba8398bc9c568c";
-      sha256 = "";
+      rev = "8553bc2051f8228a881b186ce5bb73b5bdbfadf1";
+      sha256 = "sha256-LmIYSpDNBBax5wA0QWYN0lPzULOoA8mIa5I7HGoZNdE=";
     };
-  in pkgs.nix.overrideAttrs (old: {
-    patches =
-      (old.patches or [])
-      ++ [
-        "${combined-manager}/nix-patches/evaluable-inputs.patch"
-      ];
-  });
+  in
+    pkgs.nix.overrideAttrs (old: {
+      patches =
+        (old.patches or [])
+        ++ (
+          map
+          (file: "${combinedManager}/nix-patches/${file}")
+          (lib.attrNames (builtins.readDir "${combinedManager}/nix-patches"))
+        );
+    });
 };
 ```
 
@@ -152,10 +155,11 @@ nix = {
   package = pkgs.nix.overrideAttrs (old: {
     patches =
       (old.patches or [])
-      ++ [
-        ../../combined-manager/nix-patches/evaluable-inputs.patch
-        ../../combined-manager/nix-patches/default-submodules-flag.patch
-      ];
+      ++ (
+        map
+        (file: "${../../combined-manager/nix-patches}/${file}")
+        (lib.attrNames (builtins.readDir "${../../combined-manager/nix-patches}"))
+      );
   });
 };
 ```
