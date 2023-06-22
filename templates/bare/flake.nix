@@ -2,15 +2,15 @@
   description = "NixOS configuration";
 
   inputs = let
-    evaluatedInputs =
+    evaluatedInputs = let
+      cmLock = (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.combined-manager.locked;
+      combinedManager = import (builtins.fetchTarball {
+        url = "https://github.com/${cmLock.owner}/${cmLock.repo}/archive/${cmLock.rev}.tar.gz";
+        sha256 = cmLock.narHash;
+      });
+    in
       if (builtins.pathExists ./flake.lock)
-      then let
-        cmLock = (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.combined-manager.locked;
-        combinedManager = import (builtins.fetchTarball {
-          url = "https://github.com/${cmLock.owner}/${cmLock.repo}/archive/${cmLock.rev}.tar.gz";
-          sha256 = cmLock.narHash;
-        });
-      in
+      then
         combinedManager.evaluateInputs {
           lockFile = ./flake.lock;
           modules = [];
@@ -19,7 +19,7 @@
   in
     evaluatedInputs
     // {
-      nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+      nixpkgs.url = "github:nixos/nixpkgs";
       home-manager = {
         url = "github:nix-community/home-manager";
         inputs.nixpkgs.follows = "nixpkgs";
