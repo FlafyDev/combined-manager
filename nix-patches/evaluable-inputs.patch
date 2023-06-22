@@ -1,12 +1,13 @@
 diff --git a/src/libexpr/flake/flake.cc b/src/libexpr/flake/flake.cc
-index 119c556acdf..f55a98ac21b 100644
+index 60bb6a7..1dd23c5 100644
 --- a/src/libexpr/flake/flake.cc
 +++ b/src/libexpr/flake/flake.cc
-@@ -175,6 +175,7 @@ static std::map<FlakeId, FlakeInput> parseFlakeInputs(
+@@ -74,7 +74,7 @@ static std::tuple<fetchers::Tree, FlakeRef, FlakeRef> fetchOrSubstituteTree(
+ 
+ static void forceTrivialValue(EvalState & state, Value & value, const PosIdx pos)
  {
-     std::map<FlakeId, FlakeInput> inputs;
+-    if (value.isThunk() && value.isTrivial())
++    if (value.isThunk()) // HACK: always forceValue, even if not trivial
+         state.forceValue(value, pos);
+ }
  
-+    state.forceValue(*value, pos);
-     expectType(state, nAttrs, *value, pos);
- 
-     for (nix::Attr & inputAttr : *(*value).attrs) {
