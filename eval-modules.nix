@@ -119,7 +119,11 @@ in
               // {
                 osConfig = config.os;
               };
-            os = {pkgs, ...}: {
+            os = {
+              pkgs,
+              options,
+              ...
+            }: {
               options = {
                 _combined-manager.args = lib.mkOption {
                   type = lib.types.attrs;
@@ -127,7 +131,10 @@ in
                   visible = "hidden";
                 };
               };
-              config._combined-manager.args = {inherit pkgs;};
+              config._combined-manager.args = {
+                inherit pkgs;
+                osOptions = options;
+              };
             };
           };
         })
