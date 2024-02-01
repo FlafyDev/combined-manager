@@ -14,28 +14,31 @@ let
     then lib
     else builtins.trace "[1;31mInputs need to be evaluated again.[0m" null;
 
-  evaluateConfigInputs = configuration: lib:
-    (evalModules {
-      inherit (configuration) modules system;
-      inputs = {
-        nixpkgs = {
-          inherit lib;
+  evaluateConfigInputs = configuration: lib: let
+    configuration' = builtins.removeAttrs configuration ["inputOverrides"];
+  in
+    (evalModules (configuration'
+      // {
+        inputs = {
+          nixpkgs = {
+            inherit lib;
+          };
         };
-      };
-    })
+      }))
     .config
     .inputs;
 
   nixosSystem = {
     inputs,
-    system,
-    modules,
+    configuration,
   }: let
-    inherit ((evalModules {inherit modules inputs system;}).config) osModules;
+    configuration' = (builtins.removeAttrs configuration ["inputOverrides"]) // {inputs = inputs // ((configuration.inputOverrides or (_: {})) inputs);};
+    inherit ((evalModules configuration').config) osModules;
 
-    evaluated = evalModules {
-      inherit modules inputs osModules system;
-    };
+    evaluated = evalModules (configuration'
+      // {
+        inherit osModules;
+      });
   in {config = evaluated.config.os;};
 
   mkFlake = {
@@ -64,7 +67,7 @@ let
         (builtins.attrValues configurations));
   in
     assert builtins.elem "nixpkgs" (builtins.attrNames initialInputs) || throw "nixpkgs input not found in initialInputs" {};
-    assert builtins.elem "home-manager" (builtins.attrNames initialInputs) || throw "home-manager input not found in initialInputs" {}; {
+    assert ((builtins.any (config: config.useHomeManager or true) (builtins.attrValues configurations)) && (builtins.elem "home-manager" (builtins.attrNames initialInputs))) || throw "home-manager input not found in initialInputs" {}; {
       inherit description;
       inputs = evaluatedInputs // initialInputs;
       outputs = inputs:
@@ -73,7 +76,7 @@ let
           nixosConfigurations =
             (lib.mapAttrs (_name: config:
               nixosSystem {
-                inherit (config) system modules;
+                configuration = config;
                 inherit inputs;
               })
             configurations)

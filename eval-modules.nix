@@ -2,6 +2,8 @@
   modules ? [],
   inputs,
   system,
+  useHomeManager ? true,
+  specialArgs ? {},
   osModules ? [],
 }: let
   inherit (inputs.nixpkgs) lib;
@@ -14,6 +16,7 @@
       specialArgs = {
         inherit baseModules;
         modulesPath = "${inputs.nixpkgs}/nixos/modules";
+        modules = osModules; # TODO: figure out if this is really what it should be equal to.
       };
       modules =
         baseModules
@@ -24,10 +27,12 @@
     };
 in
   evalModules {
-    specialArgs = {
-      inherit inputs;
-      combinedManager = ./.;
-    };
+    specialArgs =
+      {
+        inherit inputs;
+        combinedManager = ./.;
+      }
+      // specialArgs;
     modules =
       [
         ({lib, ...}: let
@@ -46,49 +51,6 @@ in
             };
           };
         }
-
-        # Home Manager
-        ({
-          options,
-          config,
-          osConfig,
-          lib,
-          ...
-        }: {
-          options.hm = lib.mkOption {
-            type = lib.types.deferredModule;
-            default = {};
-            description = ''
-              Home Manager configuration.
-            '';
-          };
-
-          options.hmUsername = lib.mkOption {
-            type = lib.types.str;
-            default = "user";
-            description = ''
-              Username used for hm.
-            '';
-          };
-
-          options.hmModules = lib.mkOption {
-            type = with types; listOf raw;
-            default = [];
-            description = "Home Manager modules.";
-          };
-
-          config = {
-            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            osModules = [inputs.home-manager.nixosModules.home-manager];
-            os = {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.users.${config.hmUsername} = config.hm;
-              home-manager.sharedModules = config.hmModules;
-              home-manager.extraSpecialArgs = {inherit inputs;};
-            };
-          };
-        })
 
         # Nixpkgs modules
         ({
@@ -139,5 +101,51 @@ in
           };
         })
       ]
+      ++ (
+        lib.optional useHomeManager
+        ({
+          options,
+          config,
+          osConfig,
+          lib,
+          ...
+        }: {
+          options = {
+            hm = lib.mkOption {
+              type = lib.types.deferredModule;
+              default = {};
+              description = ''
+                Home Manager configuration.
+              '';
+            };
+
+            hmUsername = lib.mkOption {
+              type = lib.types.str;
+              default = "user";
+              description = ''
+                Username used for hm.
+              '';
+            };
+
+            hmModules = lib.mkOption {
+              type = with types; listOf raw;
+              default = [];
+              description = "Home Manager modules.";
+            };
+          };
+
+          config = {
+            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
+            osModules = [inputs.home-manager.nixosModules.home-manager];
+            os.home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              users.${config.hmUsername} = config.hm;
+              sharedModules = config.hmModules;
+              extraSpecialArgs = {inherit inputs;};
+            };
+          };
+        })
+      )
       ++ modules;
   }
