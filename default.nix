@@ -9,10 +9,16 @@ let
         sha256 = nixpkgsLock.narHash;
       })
       + "/lib");
+    libFixed = import ((builtins.fetchTarball {
+        url = "https://github.com/nix-community/nixpkgs.lib/archive/4833b4eb30dfe3abad5a21775bc5460322c8d337.tar.gz";
+        sha256 = "sha256:1ppr46pf1glp7irxcr8w4fzfffgl34cnsb0dyy8mm8khw1bzbb5z";
+      })
+      + "/lib");
   in
     if (builtins.pathExists lockFile && nodes ? nixpkgs)
     then lib
-    else builtins.trace "[1;31mInputs need to be evaluated again.[0m" null;
+    else libFixed;
+  # else builtins.trace "[1;31mInputs need to be evaluated again.[0m" null;
 
   evaluateConfigInputs = configuration: lib: let
     configuration' = builtins.removeAttrs configuration ["inputOverrides"];
