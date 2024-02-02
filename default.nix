@@ -28,7 +28,7 @@ let
     .config
     .inputs;
 
-  nixosSystem = {
+  combinedManagerSystem = {
     inputs,
     configuration,
   }: let
@@ -39,7 +39,9 @@ let
       // {
         inherit osModules;
       });
-  in {config = evaluated.config.os;};
+  in {inherit (evaluated) config;};
+
+  nixosSystem = args: {config = (combinedManagerSystem args).config.os;};
 
   mkFlake = {
     lockFile,
@@ -73,10 +75,20 @@ let
       outputs = inputs:
         (outputs inputs)
         // {
-          nixosConfigurations =
+          nixosConfigurations = let
+            allConfigurations = builtins.mapAttrs (_host: config: config.config) (
+              (lib.mapAttrs (_name: config:
+                combinedManagerSystem {
+                  configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
+                  inherit inputs;
+                })
+              configurations)
+              // (outputs inputs).nixosConfigurations or {}
+            );
+          in
             (lib.mapAttrs (_name: config:
               nixosSystem {
-                configuration = config;
+                configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
                 inherit inputs;
               })
             configurations)
