@@ -52,12 +52,58 @@ in
           };
         }
 
-        # Nixpkgs modules
+        # Combined Manager module
         ({
           config,
           osConfig,
           ...
         }: {
+          options.combinedManager = {
+            osPassedArgs = lib.mkOption {
+              type = lib.types.attrs;
+              default = {
+                osOptions = "options";
+                pkgs = "pkgs";
+              };
+              visible = "hidden";
+            };
+            osExtraPassedArgs = lib.mkOption {
+              type = lib.types.attrs;
+              default = {};
+              visible = "hidden";
+            };
+          };
+
+          config = {
+            _module.args =
+              config.os._combinedManager.args
+              // {
+                osConfig = config.os;
+              };
+            os = let
+              cmConfig = config;
+            in
+              {config, ...} @ args: {
+                options = {
+                  _combinedManager.args = mkOption {
+                    type = types.attrs;
+                    default = {};
+                    visible = "hidden";
+                  };
+                };
+                config._combinedManager.args =
+                  lib.mapAttrs (
+                    _name: value: config._module.args.${value} or args.${value}
+                  )
+                  (
+                    cmConfig.combinedManager.osExtraPassedArgs
+                    // cmConfig.combinedManager.osPassedArgs
+                  );
+              };
+          };
+        })
+
+        (_: {
           options = {
             os = lib.mkOption {
               type = osModule;
@@ -72,31 +118,6 @@ in
               type = with types; listOf raw;
               default = [];
               description = "Top level system modules.";
-            };
-          };
-
-          config = {
-            _module.args =
-              config.os._combined-manager.args
-              // {
-                osConfig = config.os;
-              };
-            os = {
-              pkgs,
-              options,
-              ...
-            }: {
-              options = {
-                _combined-manager.args = lib.mkOption {
-                  type = lib.types.attrs;
-                  default = {};
-                  visible = "hidden";
-                };
-              };
-              config._combined-manager.args = {
-                inherit pkgs;
-                osOptions = options;
-              };
             };
           };
         })
