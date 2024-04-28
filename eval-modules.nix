@@ -5,6 +5,7 @@
   useHomeManager ? true,
   specialArgs ? {},
   osModules ? [],
+  prefix ? [],
 }: let
   inherit (inputs.nixpkgs) lib;
   inherit (lib) mkOption types evalModules;
@@ -27,6 +28,7 @@
     };
 in
   evalModules {
+    inherit prefix;
     specialArgs =
       {
         inherit inputs;
