@@ -1,28 +1,21 @@
 {
-  modules ? [ ],
-  inputs,
   system,
-  useHomeManager ? true,
-  specialArgs ? { },
-  osModules ? [ ],
+  inputs,
   prefix ? [ ],
+  specialArgs ? { },
+  useHomeManager ? true,
+  modules ? [ ],
+  osModules ? [ ],
 }:
 let
-  inherit (inputs.nixpkgs) lib;
-  inherit (lib) mkOption types evalModules;
-  osModule =
-    let
-      baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
-    in
-    types.submoduleWith {
-      description = "Nixpkgs modules";
-      specialArgs = {
-        inherit baseModules;
-        modulesPath = "${inputs.nixpkgs}/nixos/modules";
-        modules = osModules; # TODO: figure out if this is really what it should be equal to.
-      };
-      modules = baseModules ++ osModules ++ [ { nixpkgs.system = system; } ];
-    };
+  inherit (inputs) nixpkgs;
+  inherit (nixpkgs) lib;
+  inherit (lib)
+    evalModules
+    mkIf
+    mkOption
+    types
+    ;
 in
 evalModules {
   inherit prefix;
@@ -31,122 +24,108 @@ evalModules {
     combinedManager = ./.;
   } // specialArgs;
   modules =
-    modules
-    ++ [
+    [
+      # TODO What is this for?
       (
-        { lib, ... }:
         let
-          self = inputs.nixpkgs;
+          self = nixpkgs;
         in
         {
           os.system.nixos.versionSuffix = ".${
             lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")
           }.${self.shortRev or "dirty"}";
-          os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
+          os.system.nixos.revision = mkIf (self ? rev) self.rev;
         }
       )
 
-      {
-        options = {
-          inputs = mkOption {
-            type = with types; attrs;
-            default = { };
-            description = "Inputs";
-          };
-        };
-      }
-
-      # Combined Manager module
       (
-        { config, osConfig, ... }:
+        { config, ... }:
         {
-          options.combinedManager = {
-            osPassedArgs = lib.mkOption {
-              type = lib.types.attrs;
-              default = {
-                osOptions = "options";
-                pkgs = "pkgs";
-              };
-              visible = "hidden";
-            };
-            osExtraPassedArgs = lib.mkOption {
-              type = lib.types.attrs;
+          options = {
+            inputs = mkOption {
+              type = types.attrs;
               default = { };
-              visible = "hidden";
+              description = "Inputs";
+            };
+
+            # TODO Why does this exist?
+            combinedManager = {
+              osPassedArgs = mkOption {
+                type = types.attrs;
+                default = {
+                  osOptions = "options";
+                  pkgs = "pkgs";
+                };
+                visible = "hidden";
+              };
+              osExtraPassedArgs = mkOption {
+                type = types.attrs;
+                default = { };
+                visible = "hidden";
+              };
+            };
+
+            os = mkOption {
+              type =
+                let
+                  baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
+                in
+                types.submoduleWith {
+                  description = "NixOS modules";
+                  # TODO Why specify the modules special arg? Is modulesPath provided by default?
+                  specialArgs = {
+                    modulesPath = "${nixpkgs}/nixos/modules";
+                    modules = osModules; # TODO: figure out if this is really what it should be equal to.
+                  };
+                  modules = baseModules ++ osModules ++ [ { nixpkgs.system = system; } ];
+                };
+              default = { };
+              visible = "shallow";
+              description = "Nixpkgs configuration.";
+            };
+
+            osModules = mkOption {
+              type = with types; listOf raw;
+              default = [ ];
+              description = "Top level NixOS modules.";
             };
           };
 
           config = {
-            _module.args = config.os._combinedManager.args // {
-              osConfig = config.os;
-            };
-            os =
-              let
-                cmConfig = config;
-              in
-              { config, ... }@args:
-              {
-                options = {
-                  _combinedManager.args = mkOption {
-                    type = types.attrs;
-                    default = { };
-                    visible = "hidden";
-                  };
-                };
-                config._combinedManager.args = lib.mapAttrs (
-                  _name: value: config._module.args.${value} or args.${value}
-                ) (cmConfig.combinedManager.osExtraPassedArgs // cmConfig.combinedManager.osPassedArgs);
+            # TODO Replace config with the os config, args with the os args, and cmConfig with config
+            _module.args =
+              builtins.mapAttrs (_: value: config._module.args.${value} or args.${value}) (
+                cmConfig.combinedManager.osExtraPassedArgs // cmConfig.combinedManager.osPassedArgs
+              )
+              // {
+                osConfig = config.os;
               };
           };
         }
       )
-
-      (_: {
-        options = {
-          os = lib.mkOption {
-            type = osModule;
-            default = { };
-            visible = "shallow";
-            description = ''
-              Nixpkgs configuration.
-            '';
-          };
-
-          osModules = mkOption {
-            type = with types; listOf raw;
-            default = [ ];
-            description = "Top level system modules.";
-          };
-        };
-      })
     ]
-    ++ (lib.optional useHomeManager (
+    ++ lib.optional useHomeManager (
       {
         options,
         config,
         osConfig,
-        lib,
         ...
       }:
       {
         options = {
-          hm = lib.mkOption {
-            type = lib.types.deferredModule;
+          hm = mkOption {
+            type = types.deferredModule;
             default = { };
-            description = ''
-              Home Manager configuration.
-            '';
+            description = "Home Manager configuration.";
           };
 
-          hmUsername = lib.mkOption {
-            type = lib.types.str;
+          hmUsername = mkOption {
+            type = types.str;
             default = "user";
-            description = ''
-              Username used for hm.
-            '';
+            description = "Username used for Home Manager.";
           };
 
-          hmModules = lib.mkOption {
+          hmModules = mkOption {
             type = with types; listOf raw;
             default = [ ];
             description = "Home Manager modules.";
@@ -167,5 +146,6 @@ evalModules {
           };
         };
       }
-    ));
+    )
+    ++ modules;
 }
