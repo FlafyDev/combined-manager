@@ -2,7 +2,7 @@ let
   evalModules = import ./eval-modules.nix;
 
   getLib =
-    { lockFile }:
+    lockFile:
     let
       inherit (builtins.fromJSON (builtins.readFile lockFile)) nodes;
       nixpkgsLock = nodes.nixpkgs.locked;
@@ -54,14 +54,14 @@ rec {
 
   mkFlake =
     {
-      lockFile,
       description,
-      initialInputs,
+      lockFile,
+      initialInputs ? {},
       configurations,
       outputs ? (_: { }),
     }:
     let
-      lib = getLib { inherit lockFile; };
+      lib = getLib lockFile;
 
       evaluatedInputs = lib.foldl (
         allInputs: configInputs:
@@ -77,18 +77,11 @@ rec {
         ) allInputs configInputs
       ) { } (map (config: evaluateConfigInputs config lib) (builtins.attrValues configurations));
     in
-    assert
-      builtins.elem "nixpkgs" (builtins.attrNames initialInputs)
-      || throw "nixpkgs input not found in initialInputs" { };
-    assert
-      (
-        (builtins.any (config: config.useHomeManager or true) (builtins.attrValues configurations))
-        && (builtins.elem "home-manager" (builtins.attrNames initialInputs))
-      )
-      || throw "home-manager input not found in initialInputs" { };
     {
       inherit description;
+
       inputs = evaluatedInputs // initialInputs;
+
       outputs =
         inputs:
         (outputs inputs)

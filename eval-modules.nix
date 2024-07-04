@@ -9,10 +9,9 @@
 }:
 let
   inherit (inputs) nixpkgs;
-  inherit (nixpkgs) lib;
-  inherit (lib)
+  inherit (nixpkgs.lib)
+    optional
     evalModules
-    mkIf
     mkOption
     types
     ;
@@ -21,23 +20,10 @@ evalModules {
   inherit prefix;
   specialArgs = {
     inherit inputs;
-    combinedManager = ./.;
+    combinedManagerPath = ./.;
   } // specialArgs;
   modules =
     [
-      # TODO What is this for?
-      (
-        let
-          self = nixpkgs;
-        in
-        {
-          os.system.nixos.versionSuffix = ".${
-            lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")
-          }.${self.shortRev or "dirty"}";
-          os.system.nixos.revision = mkIf (self ? rev) self.rev;
-        }
-      )
-
       (
         { config, ... }:
         {
@@ -48,40 +34,15 @@ evalModules {
               description = "Inputs";
             };
 
-            # TODO Why does this exist?
-            combinedManager = {
-              osPassedArgs = mkOption {
-                type = types.attrs;
-                default = {
-                  osOptions = "options";
-                  pkgs = "pkgs";
-                };
-                visible = "hidden";
-              };
-              osExtraPassedArgs = mkOption {
-                type = types.attrs;
-                default = { };
-                visible = "hidden";
-              };
-            };
-
             os = mkOption {
-              type =
-                let
-                  baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
-                in
-                types.submoduleWith {
-                  description = "NixOS modules";
-                  # TODO Why specify the modules special arg? Is modulesPath provided by default?
-                  specialArgs = {
-                    modulesPath = "${nixpkgs}/nixos/modules";
-                    modules = osModules; # TODO: figure out if this is really what it should be equal to.
-                  };
-                  modules = baseModules ++ osModules ++ [ { nixpkgs.system = system; } ];
-                };
+              type = types.submoduleWith {
+                specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
+                modules =
+                  import "${nixpkgs}/nixos/modules/module-list.nix" ++ osModules ++ [ { nixpkgs.system = system; } ];
+              };
               default = { };
               visible = "shallow";
-              description = "Nixpkgs configuration.";
+              description = "NixOS configuration.";
             };
 
             osModules = mkOption {
@@ -91,20 +52,11 @@ evalModules {
             };
           };
 
-          config = {
-            # TODO Replace config with the os config, args with the os args, and cmConfig with config
-            _module.args =
-              builtins.mapAttrs (_: value: config._module.args.${value} or args.${value}) (
-                cmConfig.combinedManager.osExtraPassedArgs // cmConfig.combinedManager.osPassedArgs
-              )
-              // {
-                osConfig = config.os;
-              };
-          };
+          config._module.args.osConfig = config.os;
         }
       )
     ]
-    ++ lib.optional useHomeManager (
+    ++ optional useHomeManager (
       {
         options,
         config,
@@ -134,15 +86,15 @@ evalModules {
 
         config = {
           _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-          osModules = [ inputs.home-manager.nixosModules.home-manager ];
+
+          osModules = [ inputs.home-manager.nixosModules.default ];
+
           os.home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
-            users.${config.hmUsername} = config.hm;
+            extraSpecialArgs.inputs = inputs;
             sharedModules = config.hmModules;
-            extraSpecialArgs = {
-              inherit inputs;
-            };
+            users.${config.hmUsername} = config.hm;
           };
         };
       }
