@@ -1,17 +1,19 @@
 {
-  modules ? [],
+  modules ? [ ],
   inputs,
   system,
   useHomeManager ? true,
-  specialArgs ? {},
-  osModules ? [],
-  prefix ? [],
-}: let
+  specialArgs ? { },
+  osModules ? [ ],
+  prefix ? [ ],
+}:
+let
   inherit (inputs.nixpkgs) lib;
   inherit (lib) mkOption types evalModules;
-  osModule = let
-    baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
-  in
+  osModule =
+    let
+      baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
+    in
     types.submoduleWith {
       description = "Nixpkgs modules";
       specialArgs = {
@@ -19,47 +21,45 @@
         modulesPath = "${inputs.nixpkgs}/nixos/modules";
         modules = osModules; # TODO: figure out if this is really what it should be equal to.
       };
-      modules =
-        baseModules
-        ++ osModules
-        ++ [
-          {nixpkgs.system = system;}
-        ];
+      modules = baseModules ++ osModules ++ [ { nixpkgs.system = system; } ];
     };
 in
-  evalModules {
-    inherit prefix;
-    specialArgs =
-      {
-        inherit inputs;
-        combinedManager = ./.;
-      }
-      // specialArgs;
-    modules =
-      [
-        ({lib, ...}: let
+evalModules {
+  inherit prefix;
+  specialArgs = {
+    inherit inputs;
+    combinedManager = ./.;
+  } // specialArgs;
+  modules =
+    modules
+    ++ [
+      (
+        { lib, ... }:
+        let
           self = inputs.nixpkgs;
-        in {
-          os.system.nixos.versionSuffix = ".${lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")}.${self.shortRev or "dirty"}";
-          os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
-        })
-
+        in
         {
-          options = {
-            inputs = mkOption {
-              type = with types; attrs;
-              default = {};
-              description = "Inputs";
-            };
-          };
+          os.system.nixos.versionSuffix = ".${
+            lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")
+          }.${self.shortRev or "dirty"}";
+          os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
         }
+      )
 
-        # Combined Manager module
-        ({
-          config,
-          osConfig,
-          ...
-        }: {
+      {
+        options = {
+          inputs = mkOption {
+            type = with types; attrs;
+            default = { };
+            description = "Inputs";
+          };
+        };
+      }
+
+      # Combined Manager module
+      (
+        { config, osConfig, ... }:
+        {
           options.combinedManager = {
             osPassedArgs = lib.mkOption {
               type = lib.types.attrs;
@@ -71,104 +71,101 @@ in
             };
             osExtraPassedArgs = lib.mkOption {
               type = lib.types.attrs;
-              default = {};
+              default = { };
               visible = "hidden";
             };
           };
 
           config = {
-            _module.args =
-              config.os._combinedManager.args
-              // {
-                osConfig = config.os;
-              };
-            os = let
-              cmConfig = config;
-            in
-              {config, ...} @ args: {
+            _module.args = config.os._combinedManager.args // {
+              osConfig = config.os;
+            };
+            os =
+              let
+                cmConfig = config;
+              in
+              { config, ... }@args:
+              {
                 options = {
                   _combinedManager.args = mkOption {
                     type = types.attrs;
-                    default = {};
+                    default = { };
                     visible = "hidden";
                   };
                 };
-                config._combinedManager.args =
-                  lib.mapAttrs (
-                    _name: value: config._module.args.${value} or args.${value}
-                  )
-                  (
-                    cmConfig.combinedManager.osExtraPassedArgs
-                    // cmConfig.combinedManager.osPassedArgs
-                  );
+                config._combinedManager.args = lib.mapAttrs (
+                  _name: value: config._module.args.${value} or args.${value}
+                ) (cmConfig.combinedManager.osExtraPassedArgs // cmConfig.combinedManager.osPassedArgs);
               };
           };
-        })
-
-        (_: {
-          options = {
-            os = lib.mkOption {
-              type = osModule;
-              default = {};
-              visible = "shallow";
-              description = ''
-                Nixpkgs configuration.
-              '';
-            };
-
-            osModules = mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "Top level system modules.";
-            };
-          };
-        })
-      ]
-      ++ (
-        lib.optional useHomeManager
-        ({
-          options,
-          config,
-          osConfig,
-          lib,
-          ...
-        }: {
-          options = {
-            hm = lib.mkOption {
-              type = lib.types.deferredModule;
-              default = {};
-              description = ''
-                Home Manager configuration.
-              '';
-            };
-
-            hmUsername = lib.mkOption {
-              type = lib.types.str;
-              default = "user";
-              description = ''
-                Username used for hm.
-              '';
-            };
-
-            hmModules = lib.mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "Home Manager modules.";
-            };
-          };
-
-          config = {
-            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            osModules = [inputs.home-manager.nixosModules.home-manager];
-            os.home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              users.${config.hmUsername} = config.hm;
-              sharedModules = config.hmModules;
-              extraSpecialArgs = {inherit inputs;};
-            };
-          };
-        })
+        }
       )
-      ++ modules;
-  }
+
+      (_: {
+        options = {
+          os = lib.mkOption {
+            type = osModule;
+            default = { };
+            visible = "shallow";
+            description = ''
+              Nixpkgs configuration.
+            '';
+          };
+
+          osModules = mkOption {
+            type = with types; listOf raw;
+            default = [ ];
+            description = "Top level system modules.";
+          };
+        };
+      })
+    ]
+    ++ (lib.optional useHomeManager (
+      {
+        options,
+        config,
+        osConfig,
+        lib,
+        ...
+      }:
+      {
+        options = {
+          hm = lib.mkOption {
+            type = lib.types.deferredModule;
+            default = { };
+            description = ''
+              Home Manager configuration.
+            '';
+          };
+
+          hmUsername = lib.mkOption {
+            type = lib.types.str;
+            default = "user";
+            description = ''
+              Username used for hm.
+            '';
+          };
+
+          hmModules = lib.mkOption {
+            type = with types; listOf raw;
+            default = [ ];
+            description = "Home Manager modules.";
+          };
+        };
+
+        config = {
+          _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
+          osModules = [ inputs.home-manager.nixosModules.home-manager ];
+          os.home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.${config.hmUsername} = config.hm;
+            sharedModules = config.hmModules;
+            extraSpecialArgs = {
+              inherit inputs;
+            };
+          };
+        };
+      }
+    ));
+}

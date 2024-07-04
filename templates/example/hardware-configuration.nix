@@ -3,5 +3,5 @@
   lib,
   modulesPath,
   ...
-}: {
-}
+}:
+{ }

@@ -5,26 +5,21 @@
   hmConfig,
   inputs,
   ...
-}: {
+}:
+{
   # Adding inputs
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
   };
 
   # Adding top level system modules
-  osModules = [
-    ./hardware-configuration.nix
-  ];
+  osModules = [ ./hardware-configuration.nix ];
 
   # Adding home modules
-  hmModules = [];
+  hmModules = [ ];
 
   # Setting overlays
-  os.nixpkgs.overlays = [
-    (_final: prev: {
-      customCat = prev.bat;
-    })
-  ];
+  os.nixpkgs.overlays = [ (_final: prev: { customCat = prev.bat; }) ];
 
   # Using `os` to set Nixpkgs options.
   os = {
@@ -41,10 +36,9 @@
     users.mutableUsers = false;
   };
   os.programs.vim.defaultEditor = false;
-  os.environment.systemPackages = with pkgs;
-    lib.mkIf (!osConfig.programs.vim.defaultEditor) [
-      customCat
-    ];
+  os.environment.systemPackages =
+    with pkgs;
+    lib.mkIf (!osConfig.programs.vim.defaultEditor) [ customCat ];
 
   # Set Home Manager username
   hmUsername = "a";
