@@ -1,10 +1,10 @@
 {
-  system,
+  system ? builtins.currentSystem,
   inputs,
   prefix ? [ ],
   specialArgs ? { },
   useHomeManager ? true,
-  modules ? [ ],
+  modules,
   osModules ? [ ],
 }:
 let
@@ -29,7 +29,8 @@ evalModules {
         {
           options = {
             inputs = mkOption {
-              type = types.attrs;
+              # TODO A proper input type
+              type = with types; attrsOf (uniq anything);
               default = { };
               description = "Inputs";
             };

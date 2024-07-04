@@ -20,20 +20,7 @@ let
     );
 
   evaluateConfigInputs =
-    configuration: lib:
-    let
-      configuration' = builtins.removeAttrs configuration [ "inputOverrides" ];
-    in
-    (evalModules (
-      configuration'
-      // {
-        inputs = {
-          nixpkgs = {
-            inherit lib;
-          };
-        };
-      }
-    )).config.inputs;
+    configuration: lib: (evalModules (configuration // { inputs.nixpkgs.lib = lib; })).config.inputs;
 
   combinedManagerSystem =
     { inputs, configuration }:
@@ -56,31 +43,27 @@ rec {
     {
       description,
       lockFile,
-      initialInputs ? {},
+      initialInputs ? { },
       configurations,
       outputs ? (_: { }),
     }:
     let
       lib = getLib lockFile;
 
-      evaluatedInputs = lib.foldl (
-        allInputs: configInputs:
-        # This foldAttrs is basically `allInputs // configInputs` but with an assertion.
-        lib.foldlAttrs (
-          allInputs: inputName: inputValue:
-          assert
-            (!(builtins.elem inputName (builtins.attrNames allInputs) && allInputs.${inputName} != inputValue))
-            || throw "The input \"${inputName}\" appears more than once and equals to different values!\nFirst definition: ${builtins.toJSON inputValue}\nSecond definition: ${
-              builtins.toJSON allInputs.${inputName}
-            }";
-          allInputs // { ${inputName} = inputValue; }
-        ) allInputs configInputs
-      ) { } (map (config: evaluateConfigInputs config lib) (builtins.attrValues configurations));
+      evaluatedInputsList = lib.map (config: evaluateConfigInputs config lib) (
+        lib.attrValues configurations
+      );
+      inputsList = [ initialInputs ] ++ evaluatedInputsList;
+      # TODO Provide the file locations for the error message
+      inputsModules = lib.map (inputs: { inherit inputs; }) inputsList;
+      inputs =
+        (evalModules {
+          inputs.nixpkgs.lib = lib;
+          modules = inputsModules;
+        }).config.inputs;
     in
     {
-      inherit description;
-
-      inputs = evaluatedInputs // initialInputs;
+      inherit description inputs;
 
       outputs =
         inputs:
