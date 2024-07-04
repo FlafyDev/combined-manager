@@ -19,9 +19,6 @@ let
         <nixpkgs/lib>
     );
 
-  evaluateConfigInputs =
-    configuration: lib: (evalModules (configuration // { inputs.nixpkgs.lib = lib; })).config.inputs;
-
   combinedManagerSystem =
     { inputs, configuration }:
     let
@@ -50,17 +47,18 @@ rec {
     let
       lib = getLib lockFile;
 
-      evaluatedInputsList = lib.map (config: evaluateConfigInputs config lib) (
-        lib.attrValues configurations
-      );
-      inputsList = [ initialInputs ] ++ evaluatedInputsList;
-      # TODO Provide the file locations for the error message
-      inputsModules = lib.map (inputs: { inherit inputs; }) inputsList;
-      inputs =
-        (evalModules {
-          inputs.nixpkgs.lib = lib;
-          modules = inputsModules;
-        }).config.inputs;
+      evalConfigInputs =
+        configuration:
+        (evalModules (configuration // { inputs.nixpkgs.lib = lib; }))
+        .options.inputs.definitionsWithLocations;
+
+      inputsList = [
+        {
+          file = "flake.nix";
+          value = initialInputs;
+        }
+      ] ++ lib.foldl (defs: config: defs ++ evalConfigInputs config) [ ] (lib.attrValues configurations);
+      inputs = (import ./input-type.nix lib.types).merge [ "inputs" ] inputsList;
     in
     {
       inherit description inputs;

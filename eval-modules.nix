@@ -29,8 +29,7 @@ evalModules {
         {
           options = {
             inputs = mkOption {
-              # TODO A proper input type
-              type = with types; attrsOf (uniq anything);
+              type = import ./input-type.nix types;
               default = { };
               description = "Inputs";
             };
