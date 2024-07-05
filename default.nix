@@ -1,6 +1,15 @@
 let
   # TODO A proper input type
-  getInputType = types: with types; attrsOf (uniq anything);
+  getInputType =
+    lib:
+    with lib.types;
+    let
+      inherit (lib) mkOption;
+    in
+    attrsOf (oneOf [
+      (submodule { options.url = mkOption { type = str; }; })
+      (submodule { options.path = mkOption { type = str; }; })
+    ]);
 
   evalModules =
     {
@@ -29,13 +38,13 @@ let
             {
               options = {
                 inputs = mkOption {
-                  type = getInputType types;
+                  type = getInputType lib;
                   default = { };
                   description = "Inputs";
                 };
 
                 osModules = mkOption {
-                  # A proper type
+                  # TODO A proper type
                   type = with types; listOf raw;
                   default = [ ];
                   description = "NixOS modules.";
@@ -72,14 +81,14 @@ let
               };
 
               hmModules = mkOption {
-                # A proper type
+                # TODO A proper type
                 type = with types; listOf raw;
                 default = [ ];
                 description = "Home Manager modules.";
               };
 
               hm = mkOption {
-                # A proper type
+                # TODO A proper type
                 type = types.deferredModule;
                 default = { };
                 description = "Home Manager configuration.";
@@ -162,7 +171,7 @@ in
         in
         configs;
 
-      inputs = (getInputType lib.types).merge [ "inputs" ] (
+      inputs = (getInputType lib).merge [ "inputs" ] (
         [ ((builtins.unsafeGetAttrPos "initialInputs" args) // { value = initialInputs; }) ]
         ++
           lib.foldlAttrs
