@@ -35,7 +35,7 @@ Combined Manager breaks this pattern by allowing modules to add inputs, overlays
   osConfig,
   hmConfig,
   inputs,
-  combinedManager, # Path to the root of combinedManager
+  combinedManagerPath, # Path to the root of combinedManager
   configs, # The results of all NixOS/CombinedManager configurations
   ...
 }: {

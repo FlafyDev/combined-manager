@@ -21,7 +21,6 @@ let
       class = "combinedManager";
       specialArgs = specialArgs // {
         combinedManagerPath = ./.;
-        configs = { }; # TODO
       };
       modules =
         [
@@ -105,7 +104,6 @@ let
         ++ modules;
     };
 
-  # TODO Correct options
   combinedManagerToNixosConfig =
     config:
     config
@@ -116,7 +114,7 @@ let
     };
 in
 {
-  mkNixosSystem = args: combinedManagerToNixosConfig (evalModules args);
+  mkNixosConfig = args: combinedManagerToNixosConfig (evalModules args);
 
   mkFlake =
     {
@@ -143,41 +141,54 @@ in
             <nixpkgs/lib>
         );
 
-      evalConfigInputs =
-        config:
-        (evalModules (config // { specialArgs.inputs.nixpkgs.lib = lib; }))
-        .options.inputs.definitionsWithLocations;
-      inputsList = [
-        ((builtins.unsafeGetAttrPos "initialInputs" args) // { value = initialInputs; })
-      ] ++ lib.foldl (defs: config: defs ++ evalConfigInputs config) [ ] (lib.attrValues configurations);
-      inputs = (getInputType lib.types).merge [ "inputs" ] inputsList;
+      evalConfig =
+        {
+          config,
+          inputs,
+          configs,
+        }:
+        evalModules (
+          config
+          // {
+            specialArgs = {
+              inherit inputs configs;
+            };
+          }
+        );
+      evalAllConfigs =
+        inputs:
+        let
+          configs = lib.mapAttrs (_: config: evalConfig { inherit config inputs configs; }) configurations;
+        in
+        configs;
+
+      inputs = (getInputType lib.types).merge [ "inputs" ] (
+        [ ((builtins.unsafeGetAttrPos "initialInputs" args) // { value = initialInputs; }) ]
+        ++
+          lib.foldlAttrs
+            (
+              defs: _: config:
+              defs ++ config.options.inputs.definitionsWithLocations
+            )
+            [ ]
+            (evalAllConfigs {
+              nixpkgs.lib = lib;
+            })
+      );
     in
     {
       inherit description inputs;
 
       outputs =
-        args:
+        inputs:
         let
           explicitOutputs = outputs args;
-
-          evalConfig =
-            config:
-            evalModules (
-              config
-              // {
-                specialArgs = {
-                  inputs = args;
-                  configs = allConfigs;
-                };
-              }
-            );
-          allConfigs =
-            (lib.mapAttrs (_: config: evalConfig config) configurations)
-            // explicitOutputs.nixosConfigurations or { };
         in
-        {
-          nixosConfigurations = lib.mapAttrs (_: combinedManagerToNixosConfig) allConfigs;
-        }
-        // explicitOutputs;
+        explicitOutputs
+        // {
+          nixosConfigurations =
+            (lib.mapAttrs (_: combinedManagerToNixosConfig) (evalAllConfigs inputs))
+            // explicitOutputs.nixosConfigurations;
+        };
     };
 }
