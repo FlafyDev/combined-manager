@@ -28,21 +28,11 @@ evalModules {
         { config, ... }:
         {
           options = {
+            # These inputs are used when generating the flake
             inputs = mkOption {
               type = import ./input-type.nix types;
               default = { };
               description = "Inputs";
-            };
-
-            os = mkOption {
-              type = types.submoduleWith {
-                specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
-                modules =
-                  import "${nixpkgs}/nixos/modules/module-list.nix" ++ osModules ++ [ { nixpkgs.system = system; } ];
-              };
-              default = { };
-              visible = "shallow";
-              description = "NixOS configuration.";
             };
 
             osModules = mkOption {
@@ -50,9 +40,22 @@ evalModules {
               default = [ ];
               description = "Top level NixOS modules.";
             };
+
+            os = mkOption {
+              type = types.submoduleWith {
+                specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
+                modules = import "${nixpkgs}/nixos/modules/module-list.nix" ++ config.osModules;
+              };
+              default = { };
+              visible = "shallow";
+              description = "NixOS configuration.";
+            };
           };
 
-          config._module.args.osConfig = config.os;
+          config = {
+            _module.args.osConfig = config.os;
+            os.nixpkgs.system = system;
+          };
         }
       )
     ]
@@ -65,12 +68,6 @@ evalModules {
       }:
       {
         options = {
-          hm = mkOption {
-            type = types.deferredModule;
-            default = { };
-            description = "Home Manager configuration.";
-          };
-
           hmUsername = mkOption {
             type = types.str;
             default = "user";
@@ -81,6 +78,12 @@ evalModules {
             type = with types; listOf raw;
             default = [ ];
             description = "Home Manager modules.";
+          };
+
+          hm = mkOption {
+            type = types.deferredModule;
+            default = { };
+            description = "Home Manager configuration.";
           };
         };
 

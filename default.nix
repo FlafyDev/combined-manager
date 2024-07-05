@@ -9,7 +9,6 @@ let
     in
     import (
       if (builtins.pathExists lockFile && nodes ? nixpkgs) then
-        # TODO Don't download it again, just use the flake input
         (builtins.fetchTarball {
           url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgsLock.rev}.tar.gz";
           sha256 = nixpkgsLock.narHash;
@@ -22,18 +21,12 @@ let
   combinedManagerSystem =
     { inputs, configuration }:
     let
-      configuration' = (builtins.removeAttrs configuration [ "inputOverrides" ]) // {
-        inputs = inputs // ((configuration.inputOverrides or (_: { })) inputs);
-      };
-      inherit ((evalModules configuration').config) osModules;
-
-      evaluated = evalModules (configuration' // { inherit osModules; });
+      config = evalModules (configuration // { inherit inputs; });
     in
-    {
-      inherit (evaluated) config;
-    };
+    configuration // { inherit config; };
 in
 rec {
+  # TODO Also provide other NixOS stuff like options (also do that for mkFlake)
   nixosSystem = args: { config = (combinedManagerSystem args).config.os; };
 
   mkFlake =
@@ -51,7 +44,6 @@ rec {
         configuration:
         (evalModules (configuration // { inputs.nixpkgs.lib = lib; }))
         .options.inputs.definitionsWithLocations;
-
       inputsList = [
         {
           file = "flake.nix";
@@ -65,28 +57,13 @@ rec {
 
       outputs =
         inputs:
-        (outputs inputs)
-        // {
-          nixosConfigurations =
-            let
-              allConfigurations = builtins.mapAttrs (_host: config: config.config) (
-                (lib.mapAttrs (
-                  _name: config:
-                  combinedManagerSystem {
-                    configuration = config // {
-                      specialArgs = (config.specialArgs or { }) // {
-                        configs = allConfigurations;
-                      };
-                    };
-                    inherit inputs;
-                  }
-                ) configurations)
-                // (outputs inputs).nixosConfigurations or { }
-              );
-            in
+        let
+          explicitOutputs = outputs inputs;
+
+          allConfigurations = lib.mapAttrs (_: config: config.config) (
             (lib.mapAttrs (
-              _name: config:
-              nixosSystem {
+              _: config:
+              combinedManagerSystem {
                 configuration = config // {
                   specialArgs = (config.specialArgs or { }) // {
                     configs = allConfigurations;
@@ -95,7 +72,12 @@ rec {
                 inherit inputs;
               }
             ) configurations)
-            // (outputs inputs).nixosConfigurations or { };
+            // explicitOutputs.nixosConfigurations or { }
+          );
+        in
+        explicitOutputs
+        // {
+          nixosConfigurations = lib.mapAttrs (_: config: { config = config.config.os; }) allConfigurations;
         };
     };
 }
