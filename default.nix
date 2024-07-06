@@ -5,11 +5,68 @@ let
     with lib.types;
     let
       inherit (lib) mkOption;
+      # TODO Use the official type from nixpkgs once it gets shipped (https://github.com/NixOS/nixpkgs/pull/254790)
+      taggedSubmodule =
+        types:
+        lib.mkOptionType {
+          name = "taggedSubmodule";
+          description = "submodule with type tag";
+          check =
+            x:
+            if x ? type then
+              types.${x.type}.check x
+            else
+              throw "No type option set in:\n${lib.generators.toPretty { } x}";
+          merge = loc: foldl' (res: def: types.${def.value.type}.merge loc [ def ]) { };
+          nestedTypes = types;
+        };
     in
-    attrsOf (oneOf [
-      (submodule { options.url = mkOption { type = str; }; })
-      (submodule { options.path = mkOption { type = str; }; })
-    ]);
+    attrsOf (
+      let
+        url = submodule { options.url = mkOption { type = str; }; };
+        types = {
+          path = submodule {
+            options = {
+              type = mkOption { type = str; };
+              path = mkOption { };
+            };
+          };
+          git = submodule { options.type = mkOption { type = str; }; };
+          mercurial = attrsOf anything;
+          tarball = attrsOf anything;
+          file = attrsOf anything;
+          github = submodule {
+            options = {
+              type = mkOption { type = str; };
+              owner = mkOption { type = str; };
+              repo = mkOption { type = str; };
+            };
+          };
+          gitlab = attrsOf anything;
+        };
+      in
+      lib.mkOptionType {
+        name = "flakeInput";
+        description = "flake input";
+        check =
+          x:
+          if x ? type then
+            types.${x.type}.check x
+          else if x ? url then
+            url.check x
+          else
+            throw "No type option set in:\n${lib.generators.toPretty { } x}";
+        # TODO Can it be lib.foldl instead of lib.foldl'?
+        merge =
+          loc:
+          lib.foldl' (
+            res: def:
+	    builtins.trace res
+            (if def.value ? type then types.${def.value.type}.merge loc [ res def ] else url.merge loc [ res def ])
+          ) { };
+        nestedTypes = types // {inherit url;};
+      }
+    );
 
   evalModules =
     {
