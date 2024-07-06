@@ -1,57 +1,4 @@
 let
-  # TODO A proper input type
-  getInputType =
-    lib:
-    with lib.types;
-    let
-      inherit (lib) mkOption;
-    in
-    attrsOf (
-      let
-        url = submodule { options.url = mkOption { type = str; }; };
-        types = {
-          path = submodule {
-            options = {
-              type = mkOption { type = str; };
-              path = mkOption { };
-            };
-          };
-          git = submodule { options.type = mkOption { type = str; }; };
-          mercurial = attrsOf anything;
-          tarball = attrsOf anything;
-          file = attrsOf anything;
-          github = submodule {
-            options = {
-              type = mkOption { type = str; };
-              owner = mkOption { type = str; };
-              repo = mkOption { type = str; };
-            };
-          };
-          gitlab = attrsOf anything;
-        };
-      in
-      lib.mkOptionType {
-        # TODO Maybe include descriptionClass getSubOptions getSubModules substSubModules typeMerger functor
-        name = "flakeInput";
-        description = "flake input";
-        # TODO attrTag defines check like this, do we really don't need to call submodule.check?
-        check = x: if x ? type then types ? ${x.type} else x ? url;
-        merge =
-          loc: defs:
-          let
-            singleOption = lib.mergeOneOption loc defs;
-            option = lib.modules.evalOptionValue loc types.github [{
-              file = (head defs).file;
-              value = singleOption;
-            }];
-          in
-          builtins.trace singleOption option.value;
-        nestedTypes = types // {
-          inherit url;
-        };
-      }
-    );
-
   evalModules =
     {
       prefix ? [ ],
@@ -79,7 +26,7 @@ let
             {
               options = {
                 inputs = mkOption {
-                  type = getInputType lib;
+                  type = with types; attrsOf anything;
                   default = { };
                   description = "Inputs";
                 };
@@ -191,40 +138,49 @@ in
             <nixpkgs/lib>
         );
 
-      evalConfig =
-        {
-          config,
-          inputs,
-          configs,
-        }:
-        evalModules (
-          config
-          // {
-            specialArgs = {
-              inherit inputs configs;
-            };
-          }
-        );
       evalAllConfigs =
         inputs:
         let
-          configs = lib.mapAttrs (_: config: evalConfig { inherit config inputs configs; }) configurations;
+          configs = lib.mapAttrs (
+            _: config:
+            evalModules (
+              config
+              // {
+                specialArgs = {
+                  inherit inputs configs;
+                };
+              }
+            )
+          ) configurations;
         in
         configs;
 
-      inputs = (getInputType lib).merge [ "inputs" ] (
-        [ ((builtins.unsafeGetAttrPos "initialInputs" args) // { value = initialInputs; }) ]
-        ++
-          lib.foldlAttrs
-            (
-              defs: _: config:
-              defs ++ config.options.inputs.definitionsWithLocations
-            )
-            [ ]
-            (evalAllConfigs {
-              nixpkgs.lib = lib;
-            })
-      );
+      # TODO Test for duplicates
+      #inputs =
+      #  initialInputs
+      #  // (
+      #    let
+      #      configs = evalAllConfigs { nixpkgs.lib = lib; };
+      #    in
+      #    lib.foldlAttrs (
+      #      inputs: _: config:
+      #      inputs // (lib.head config.options.inputs.definitions)
+      #    ) { } configs
+      #  );
+
+      configsForInputs = evalAllConfigs { nixpkgs.lib = lib; };
+      configInputs = lib.mapAttrs (_: config: config.options.definitions) configsForInputs;
+      inputs = lib.foldlAttrs (inputs: _: input: inputs // input) initialInputs configInputs;
+
+      #merge = defs: {};
+
+      #inputs = merge (
+      #  [ initialInputs ]
+      #  ++ lib.foldlAttrs (
+      #    defs: _: config:
+      #    defs ++ config.options.inputs.definitions
+      #  ) [ ] configsForInputs
+      #);
     in
     {
       inherit description inputs;
@@ -238,7 +194,7 @@ in
         // {
           nixosConfigurations =
             (lib.mapAttrs (_: combinedManagerToNixosConfig) (evalAllConfigs inputs))
-            // explicitOutputs.nixosConfigurations;
+            // explicitOutputs.nixosConfigurations or { };
         };
     };
 }
