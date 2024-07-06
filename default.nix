@@ -5,21 +5,6 @@ let
     with lib.types;
     let
       inherit (lib) mkOption;
-      # TODO Use the official type from nixpkgs once it gets shipped (https://github.com/NixOS/nixpkgs/pull/254790)
-      taggedSubmodule =
-        types:
-        lib.mkOptionType {
-          name = "taggedSubmodule";
-          description = "submodule with type tag";
-          check =
-            x:
-            if x ? type then
-              types.${x.type}.check x
-            else
-              throw "No type option set in:\n${lib.generators.toPretty { } x}";
-          merge = loc: foldl' (res: def: types.${def.value.type}.merge loc [ def ]) { };
-          nestedTypes = types;
-        };
     in
     attrsOf (
       let
@@ -46,25 +31,24 @@ let
         };
       in
       lib.mkOptionType {
+        # TODO Maybe include descriptionClass getSubOptions getSubModules substSubModules typeMerger functor
         name = "flakeInput";
         description = "flake input";
-        check =
-          x:
-          if x ? type then
-            types.${x.type}.check x
-          else if x ? url then
-            url.check x
-          else
-            throw "No type option set in:\n${lib.generators.toPretty { } x}";
-        # TODO Can it be lib.foldl instead of lib.foldl'?
+        # TODO attrTag defines check like this, do we really don't need to call submodule.check?
+        check = x: if x ? type then types ? ${x.type} else x ? url;
         merge =
-          loc:
-          lib.foldl' (
-            res: def:
-	    builtins.trace res
-            (if def.value ? type then types.${def.value.type}.merge loc [ res def ] else url.merge loc [ res def ])
-          ) { };
-        nestedTypes = types // {inherit url;};
+          loc: defs:
+          let
+            singleOption = lib.mergeOneOption loc defs;
+            option = lib.modules.evalOptionValue loc types.github [{
+              file = (head defs).file;
+              value = singleOption;
+            }];
+          in
+          builtins.trace singleOption option.value;
+        nestedTypes = types // {
+          inherit url;
+        };
       }
     );
 
