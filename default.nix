@@ -155,32 +155,36 @@ in
         in
         configs;
 
-      # TODO Test for duplicates
-      #inputs =
-      #  initialInputs
-      #  // (
-      #    let
-      #      configs = evalAllConfigs { nixpkgs.lib = lib; };
-      #    in
-      #    lib.foldlAttrs (
-      #      inputs: _: config:
-      #      inputs // (lib.head config.options.inputs.definitions)
-      #    ) { } configs
-      #  );
+      # TODO Handle mkDefault etc.
 
+      initialInputsWithLocation = [
+        {
+          value = initialInputs;
+          file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
+        }
+      ];
       configsForInputs = evalAllConfigs { nixpkgs.lib = lib; };
-      configInputs = lib.mapAttrs (_: config: config.options.definitions) configsForInputs;
-      inputs = lib.foldlAttrs (inputs: _: input: inputs // input) initialInputs configInputs;
+      configInputs = lib.foldlAttrs (
+        result: _: config:
+        result ++ config.options.inputs.definitionsWithLocations
+      ) [ ] configsForInputs;
+      inputs = lib.foldl (
+        inputs:
+        { file, value }:
+        let
+          checkedInputs = lib.foldlAttrs (
+            inputs: name: value:
+            assert
+              !(inputs ? ${name} && inputs.${name} != value)
+              || throw "The input `${name}` has conflicting definition values:\n- In ``: \n- In `${file}`: ${
+                lib.generators.toPretty { } value
+              }";
+            inputs
+          ) inputs value;
+        in
+        checkedInputs // value
+      ) { } (initialInputsWithLocation ++ configInputs);
 
-      #merge = defs: {};
-
-      #inputs = merge (
-      #  [ initialInputs ]
-      #  ++ lib.foldlAttrs (
-      #    defs: _: config:
-      #    defs ++ config.options.inputs.definitions
-      #  ) [ ] configsForInputs
-      #);
     in
     {
       inherit description inputs;
