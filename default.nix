@@ -168,7 +168,33 @@ in
         result: _: config:
         result ++ config.options.inputs.definitionsWithLocations
       ) [ ] configsForInputs;
-      inputDefs = initialInputsWithLocation ++ configInputs;
+      rawInputDefs = initialInputsWithLocation ++ configInputs;
+      inputDefs =
+        let
+          # Process mkMerge and mkIf properties.
+          defs' =# (lib.map lib.dischargeProperties rawInputDefs);
+	  lib.concatMap (
+            m:
+            lib.map (value: {
+              inherit (m) file;
+              inherit value;
+            }) (lib.dischargeProperties m.value)
+          ) rawInputDefs;
+
+          # Process mkOverride properties.
+          defs'' = lib.modules.filterOverrides' defs';
+
+          # TODO Is this even required because we aren't working with lists?
+          # Sort mkOrder properties.
+          defs''' =
+            # Avoid sorting if we don't have to.
+            if lib.any (def: def.value._type or "" == "order") defs''.values then
+              lib.sortProperties defs''.values
+            else
+              defs''.values;
+        in
+        builtins.trace (lib.elemAt rawInputDefs 1).value.nixpkgs defs''';
+
       uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } inputDefs;
       inputs = lib.foldlAttrs (
         inputs: inputName: inputValue:
