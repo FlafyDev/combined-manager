@@ -39,7 +39,7 @@ let
 
                 os = mkOption {
                   type = types.submoduleWith {
-		    # TODO Are the other specialArgs (like inputs) provided?
+                    # TODO Are the other specialArgs (like inputs) provided?
                     specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
                     modules =
                       import "${nixpkgs}/nixos/modules/module-list.nix"
@@ -55,6 +55,7 @@ let
 
               config._module.args = {
                 osConfig = config.os;
+                # TODO Provide a simplified option tree to make it easy to copy option definitions from (maybe exclude the value property of each option).
                 osOptions = options.os.type.getSubOptions [ ];
               };
             }
@@ -132,45 +133,52 @@ in
       outputs ? (_: { }),
     }@args:
     let
-      nixpkgs =
+      lib =
         let
           inherit (builtins.fromJSON (builtins.readFile lockFile)) nodes;
           nixpkgsLock = nodes.nixpkgs.locked;
+          flake = builtins.getFlake (
+            if (builtins.pathExists lockFile && nodes ? nixpkgs) then
+              "github:NixOS/nixpkgs/${nixpkgsLock.rev}"
+            else
+              "github:Nixos/nixpkgs/4284c2b73c8bce4b46a6adf23e16d9e2ec8da4bb"
+          );
         in
-        builtins.getFlake (
-          if (builtins.pathExists lockFile && nodes ? nixpkgs) then
-            "github:NixOS/nixpkgs/${nixpkgsLock.rev}"
-          else
-            "github:Nixos/nixpkgs/4284c2b73c8bce4b46a6adf23e16d9e2ec8da4bb"
-        );
-      lib = nixpkgs.lib;
-
-      evalAllConfigs =
-        inputs:
-        let
-          configs = lib.mapAttrs (
-            _: config:
-            evalModules (
-              config
-              // {
-                specialArgs = {
-                  inherit inputs configs;
-                };
-              }
-            )
-          ) configurations;
-        in
-        configs;
+        flake.lib;
 
       initialInputsWithLocation = lib.singleton {
         file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
         value = initialInputs;
       };
-      configsForInputs = evalAllConfigs { inherit nixpkgs; };
-      configInputs = lib.foldlAttrs (
-        result: _: config:
-        result ++ config.options.inputs.definitionsWithLocations
-      ) [ ] configsForInputs;
+
+      directConfigModules = lib.foldlAttrs (
+        modules: _: config:
+        modules ++ config.modules
+      ) [ ] configurations;
+      configModules = lib.modules.collectModules "" directConfigModules {
+        inherit lib;
+        config = null;
+      };
+      configInputs = lib.foldl (
+        modules: module:
+        let
+          findInputs =
+            x:
+            if x ? inputs then
+              x.inputs
+            else if x ? content then
+              findInputs x.content
+            else
+              [ ];
+          inputs = findInputs module.config;
+        in
+        modules
+        ++ lib.optional (inputs != [ ]) {
+          file = module._file;
+          value = inputs;
+        }
+      ) [ ] configModules;
+
       inputDefs = initialInputsWithLocation ++ configInputs;
       typeCheckedInputDefs =
         let
@@ -201,20 +209,32 @@ in
         else
           throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs defs}"
       ) uncheckedInputs uncheckedInputs;
-    in
-    {
-      inherit description inputs;
 
+      explicitOutputs = outputs args;
+      nixosConfigurations = lib.mapAttrs (_: combinedManagerToNixosConfig) (
+        let
+          configs = lib.mapAttrs (
+            _: config:
+            evalModules (
+              config
+              // {
+                specialArgs = {
+                  inherit inputs configs;
+                };
+              }
+            )
+          ) configurations;
+        in
+        configs
+      );
       outputs =
         inputs:
-        let
-          explicitOutputs = outputs args;
-        in
         explicitOutputs
         // {
-          nixosConfigurations =
-            (lib.mapAttrs (_: combinedManagerToNixosConfig) (evalAllConfigs inputs))
-            // explicitOutputs.nixosConfigurations or { };
+          nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or { };
         };
+    in
+    {
+      inherit description inputs outputs;
     };
 }
