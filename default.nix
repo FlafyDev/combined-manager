@@ -26,6 +26,7 @@ let
             {
               options = {
                 inputs = mkOption {
+                  # TODO This type doesn't get used when evaluating flake inputs, remove?
                   type = with types; attrsOf anything;
                   default = { };
                   description = "Inputs";
@@ -164,51 +165,34 @@ in
         result: _: config:
         result ++ config.options.inputs.definitionsWithLocations
       ) [ ] configsForInputs;
-      rawInputsDefs = initialInputsWithLocation ++ configInputs;
+      inputDefs = initialInputsWithLocation ++ configInputs;
 
-      inputNames = lib.attrNames (lib.mergeAttrsList (lib.map (def: def.value) rawInputsDefs));
-      rawInputDefs = lib.genAttrs inputNames (
-        name:
-        lib.foldl (
-          total: def:
-          total
-          ++ (lib.optional (def.value ? ${name}) {
-            file = def.file;
-            value = def.value.${name};
-          })
-        ) [ ] rawInputsDefs
-      );
-      inputDefs = lib.mapAttrs (
-        name: value: (lib.mergeDefinitions null null value).defsFinal
-      ) rawInputDefs;
-
-      uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } inputDefs;
-      dinputs = lib.foldlAttrs (
-        inputs: inputName: inputValue:
+      uncheckedInputs = lib.foldl (
+        inputs: def:
+        if lib.typeOf def.value == "set" then
+          inputs // def.value
+        else
+          throw "A definition for option `' is not of type `test'. Definition values:"
+      ) { } inputDefs;
+      inputs = lib.foldlAttrs (
+        inputs: inputName: _:
         let
-          duplicates = lib.foldl (
-            duplicates: def:
-            if def.value ? ${inputName} then
-              duplicates
-              ++ [
-                {
-                  file = def.file;
-                  value = def.value.${inputName};
-                }
-              ]
-            else
-              duplicates
+          defs = lib.foldl (
+            defs: def:
+            defs
+            ++ (lib.optional (def.value ? ${inputName}) {
+              file = def.file;
+              value = def.value.${inputName};
+            })
           ) [ ] inputDefs;
-          firstDuplicate = lib.head duplicates;
-          areDuplicatesEqual = lib.all (dup: firstDuplicate.value == dup.value) (lib.drop 1 duplicates);
+          firstDef = lib.head defs;
+          areDefsEqual = lib.all (def: firstDef.value == def.value) (lib.drop 1 defs);
         in
-        if areDuplicatesEqual then
+        if areDefsEqual then
           inputs
         else
-          throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs duplicates}"
+          throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs defs}"
       ) uncheckedInputs uncheckedInputs;
-
-      inputs = lib.mapAttrs () inputDefs;
     in
     {
       inherit description inputs;
