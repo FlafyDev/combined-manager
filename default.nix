@@ -155,48 +155,35 @@ in
         in
         configs;
 
-      # TODO Handle mkDefault etc.
-
-      initialInputsWithLocation = [
-        {
-          file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
-          value = initialInputs;
-        }
-      ];
+      initialInputsWithLocation = lib.singleton {
+        file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
+        value = initialInputs;
+      };
       configsForInputs = evalAllConfigs { nixpkgs.lib = lib; };
       configInputs = lib.foldlAttrs (
         result: _: config:
         result ++ config.options.inputs.definitionsWithLocations
       ) [ ] configsForInputs;
-      rawInputDefs = initialInputsWithLocation ++ configInputs;
-      inputDefs =
-        let
-          # Process mkMerge and mkIf properties.
-          defs' =# (lib.map lib.dischargeProperties rawInputDefs);
-	  lib.concatMap (
-            m:
-            lib.map (value: {
-              inherit (m) file;
-              inherit value;
-            }) (lib.dischargeProperties m.value)
-          ) rawInputDefs;
+      rawInputsDefs = initialInputsWithLocation ++ configInputs;
 
-          # Process mkOverride properties.
-          defs'' = lib.modules.filterOverrides' defs';
-
-          # TODO Is this even required because we aren't working with lists?
-          # Sort mkOrder properties.
-          defs''' =
-            # Avoid sorting if we don't have to.
-            if lib.any (def: def.value._type or "" == "order") defs''.values then
-              lib.sortProperties defs''.values
-            else
-              defs''.values;
-        in
-        builtins.trace (lib.elemAt rawInputDefs 1).value.nixpkgs defs''';
+      inputNames = lib.attrNames (lib.mergeAttrsList (lib.map (def: def.value) rawInputsDefs));
+      rawInputDefs = lib.genAttrs inputNames (
+        name:
+        lib.foldl (
+          total: def:
+          total
+          ++ (lib.optional (def.value ? ${name}) {
+            file = def.file;
+            value = def.value.${name};
+          })
+        ) [ ] rawInputsDefs
+      );
+      inputDefs = lib.mapAttrs (
+        name: value: (lib.mergeDefinitions null null value).defsFinal
+      ) rawInputDefs;
 
       uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } inputDefs;
-      inputs = lib.foldlAttrs (
+      dinputs = lib.foldlAttrs (
         inputs: inputName: inputValue:
         let
           duplicates = lib.foldl (
@@ -220,6 +207,8 @@ in
         else
           throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs duplicates}"
       ) uncheckedInputs uncheckedInputs;
+
+      inputs = lib.mapAttrs () inputDefs;
     in
     {
       inherit description inputs;
