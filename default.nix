@@ -22,7 +22,7 @@ let
       modules =
         [
           (
-            { config, ... }:
+            { options, config, ... }:
             {
               options = {
                 inputs = mkOption {
@@ -39,12 +39,13 @@ let
 
                 os = mkOption {
                   type = types.submoduleWith {
+		    # TODO Are the other specialArgs (like inputs) provided?
                     specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
                     modules =
                       import "${nixpkgs}/nixos/modules/module-list.nix"
+                      ++ [ { nixpkgs.hostPlatform = lib.mkDefault builtins.currentSystem; } ]
                       ++ osModules
-                      ++ config.osModules
-                      ++ [ { nixpkgs.hostPlatform = lib.mkDefault builtins.currentSystem; } ];
+                      ++ config.osModules;
                   };
                   default = { };
                   visible = "shallow";
@@ -52,13 +53,17 @@ let
                 };
               };
 
-              config._module.args.osConfig = config.os;
+              config._module.args = {
+                osConfig = config.os;
+                osOptions = options.os.type.getSubOptions [ ];
+              };
             }
           )
         ]
         ++ lib.optional useHomeManager (
           {
             inputs,
+            options,
             config,
             osConfig,
             ...
@@ -86,7 +91,10 @@ let
             };
 
             config = {
-              _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
+              _module.args = {
+                hmConfig = osConfig.home-manager.users.${config.hmUsername};
+                hmOptions = options.hm;
+              };
 
               osModules = [ inputs.home-manager.nixosModules.default ];
 
@@ -124,21 +132,18 @@ in
       outputs ? (_: { }),
     }@args:
     let
-      lib =
+      nixpkgs =
         let
           inherit (builtins.fromJSON (builtins.readFile lockFile)) nodes;
           nixpkgsLock = nodes.nixpkgs.locked;
         in
-        import (
+        builtins.getFlake (
           if (builtins.pathExists lockFile && nodes ? nixpkgs) then
-            (builtins.fetchTarball {
-              url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgsLock.rev}.tar.gz";
-              sha256 = nixpkgsLock.narHash;
-            })
-            + "/lib"
+            "github:NixOS/nixpkgs/${nixpkgsLock.rev}"
           else
-            <nixpkgs/lib>
+            "github:Nixos/nixpkgs/4284c2b73c8bce4b46a6adf23e16d9e2ec8da4bb"
         );
+      lib = nixpkgs.lib;
 
       evalAllConfigs =
         inputs:
@@ -161,7 +166,7 @@ in
         file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
         value = initialInputs;
       };
-      configsForInputs = evalAllConfigs { nixpkgs.lib = lib; };
+      configsForInputs = evalAllConfigs { inherit nixpkgs; };
       configInputs = lib.foldlAttrs (
         result: _: config:
         result ++ config.options.inputs.definitionsWithLocations
