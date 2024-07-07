@@ -26,14 +26,12 @@ let
             {
               options = {
                 inputs = mkOption {
-                  # TODO This type doesn't get used when evaluating flake inputs, remove?
-                  type = with types; attrsOf anything;
+                  type = with types; attrsOf raw;
                   default = { };
                   description = "Inputs";
                 };
 
                 osModules = mkOption {
-                  # TODO A proper type
                   type = with types; listOf raw;
                   default = [ ];
                   description = "NixOS modules.";
@@ -42,7 +40,11 @@ let
                 os = mkOption {
                   type = types.submoduleWith {
                     specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
-                    modules = import "${nixpkgs}/nixos/modules/module-list.nix" ++ osModules ++ config.osModules;
+                    modules =
+                      import "${nixpkgs}/nixos/modules/module-list.nix"
+                      ++ osModules
+                      ++ config.osModules
+                      ++ [ { nixpkgs.hostPlatform = lib.mkDefault builtins.currentSystem; } ];
                   };
                   default = { };
                   visible = "shallow";
@@ -70,14 +72,13 @@ let
               };
 
               hmModules = mkOption {
-                # TODO A proper type
                 type = with types; listOf raw;
                 default = [ ];
                 description = "Home Manager modules.";
               };
 
               hm = mkOption {
-                # TODO A proper type
+                # TODO Copy the hmModule type from https://github.com/nix-community/home-manager/blob/master/nixos/common.nix
                 type = types.deferredModule;
                 default = { };
                 description = "Home Manager configuration.";
@@ -166,14 +167,16 @@ in
         result ++ config.options.inputs.definitionsWithLocations
       ) [ ] configsForInputs;
       inputDefs = initialInputsWithLocation ++ configInputs;
-
-      uncheckedInputs = lib.foldl (
-        inputs: def:
-        if lib.typeOf def.value == "set" then
-          inputs // def.value
+      typeCheckedInputDefs =
+        let
+          wrongTypeDefs = lib.filter (def: lib.typeOf def.value != "set") inputDefs;
+        in
+        if wrongTypeDefs == [ ] then
+          inputDefs
         else
-          throw "A definition for option `' is not of type `test'. Definition values:"
-      ) { } inputDefs;
+          throw "A definition for option `inputs' is not of type `attribute set of raw value'. Definition values:${lib.options.showDefs wrongTypeDefs}";
+
+      uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } typeCheckedInputDefs;
       inputs = lib.foldlAttrs (
         inputs: inputName: _:
         let
@@ -184,7 +187,7 @@ in
               file = def.file;
               value = def.value.${inputName};
             })
-          ) [ ] inputDefs;
+          ) [ ] typeCheckedInputDefs;
           firstDef = lib.head defs;
           areDefsEqual = lib.all (def: firstDef.value == def.value) (lib.drop 1 defs);
         in
