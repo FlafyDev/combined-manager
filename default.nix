@@ -159,8 +159,8 @@ in
 
       initialInputsWithLocation = [
         {
-          value = initialInputs;
           file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
+          value = initialInputs;
         }
       ];
       configsForInputs = evalAllConfigs { nixpkgs.lib = lib; };
@@ -168,23 +168,32 @@ in
         result: _: config:
         result ++ config.options.inputs.definitionsWithLocations
       ) [ ] configsForInputs;
-      inputs = lib.foldl (
-        inputs:
-        { file, value }:
+      inputDefs = initialInputsWithLocation ++ configInputs;
+      uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } inputDefs;
+      inputs = lib.foldlAttrs (
+        inputs: inputName: inputValue:
         let
-          checkedInputs = lib.foldlAttrs (
-            inputs: name: value:
-            assert
-              !(inputs ? ${name} && inputs.${name} != value)
-              || throw "The input `${name}` has conflicting definition values:\n- In ``: \n- In `${file}`: ${
-                lib.generators.toPretty { } value
-              }";
-            inputs
-          ) inputs value;
+          duplicates = lib.foldl (
+            duplicates: def:
+            if def.value ? ${inputName} then
+              duplicates
+              ++ [
+                {
+                  file = def.file;
+                  value = def.value.${inputName};
+                }
+              ]
+            else
+              duplicates
+          ) [ ] inputDefs;
+          firstDuplicate = lib.head duplicates;
+          areDuplicatesEqual = lib.all (dup: firstDuplicate.value == dup.value) (lib.drop 1 duplicates);
         in
-        checkedInputs // value
-      ) { } (initialInputsWithLocation ++ configInputs);
-
+        if areDuplicatesEqual then
+          inputs
+        else
+          throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs duplicates}"
+      ) uncheckedInputs uncheckedInputs;
     in
     {
       inherit description inputs;
