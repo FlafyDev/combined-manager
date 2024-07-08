@@ -11,7 +11,7 @@ let
     modules: _: config:
     modules ++ config.modules
   ) [ ] args.configurations;
-  configModules = (import ./collect-modules.nix lib) null "" directConfigModules {
+  configModules = (import ./modules.nix lib).collectModules null "" directConfigModules {
     inherit lib;
     config = null;
   };

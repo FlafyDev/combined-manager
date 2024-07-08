@@ -12,7 +12,7 @@ let
   inherit (nixpkgs.lib) mkOption types;
 in
 lib.evalModules {
-  inherit prefix;
+  inherit prefix; # TODO Set a default prefix?
   class = "combinedManager";
   specialArgs = specialArgs // {
     combinedManagerPath = ./.;
@@ -36,22 +36,18 @@ lib.evalModules {
             };
 
             os = mkOption {
-              type = types.submoduleWith (
+              type =
                 let
-                  config = (import "${nixpkgs}/nixos/lib/eval-config.nix" { modules = [ ]; });
+                  baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
                 in
-                builtins.trace (builtins.attrNames config) config
-              ) # {
-              # TODO Are the other specialArgs (like inputs) provided?
-              #specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
-              #modules =
-              #  (import /${nixpkgs}/nixos/lib/eval-config.nix {});
-              #import "${nixpkgs}/nixos/modules/module-list.nix"
-              #++ [ { nixpkgs.system = lib.mkDefault builtins.currentSystem; } ]
-              #++ osModules
-              #++ config.osModules;
-              #};
-              ;
+                types.submoduleWith {
+                  class = "nixos";
+                  specialArgs = {
+                    modulesPath = "${nixpkgs}/nixos/modules";
+                  } // specialArgs;
+                  modules =
+                    baseModules ++ [ { _module.args.baseModules = baseModules; } ] ++ osModules ++ config.osModules;
+                };
               default = { };
               visible = "shallow";
               description = "NixOS configuration.";
