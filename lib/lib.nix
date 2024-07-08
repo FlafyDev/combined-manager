@@ -17,7 +17,7 @@ let
   pkgs = import nixpkgsSrc { };
 
   # TODO Improve evaluation time by using the builtin derivation function and not copying the entire nixpkgs around
-  modifiedLib = pkgs.stdenvNoCC.mkDerivation {
+  modifiedLibOld = pkgs.stdenvNoCC.mkDerivation {
     pname = "patched-lib";
     version = rev;
     src = nixpkgsSrc;
@@ -25,10 +25,17 @@ let
     installPhase = "cp -r lib $out";
   };
 
-  modifiedLibImproved = derivation {
+  # TODO This actually only includes the modules.nix file
+  modifiedLib = derivation {
     system = builtins.currentSystem;
-    name = "patched-lib-${rev}";
-    # TODO builder = ;
+    name = "patched-lib";
+    allowSubstitutes = false;
+    builder = ./builder.sh;
+
+    inherit nixpkgsSrc;
+    mkdir = "${pkgs.coreutils}/bin/mkdir";
+    patch = "${pkgs.gnupatch}/bin/patch";
+    patchFile = ./lib.patch;
   };
 in
 import modifiedLib

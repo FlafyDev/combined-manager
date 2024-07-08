@@ -14,7 +14,7 @@ let
           evalModules (
             config
             // {
-	      inherit lib;
+              inherit lib;
               specialArgs = {
                 inherit inputs configs;
               };
