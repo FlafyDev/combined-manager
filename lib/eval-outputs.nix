@@ -1,7 +1,7 @@
 args:
 let
-  lib = (import ./misc.nix).lib args.lockFile;
-  inherit (import ./misc.nix) combinedManagerToNixosConfig;
+  lib = import ./lib.nix args.lockFile;
+  combinedManagerToNixosConfig = import ./combined-manager-to-nixos-config.nix;
   evalModules = import ./eval-modules.nix;
 
   explicitOutputs = (args.outputs or (_: { })) args;

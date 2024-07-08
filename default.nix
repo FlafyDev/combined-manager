@@ -1,5 +1,6 @@
 {
-  mkNixosConfig = args: (import ./misc).combinedManagerToNixosConfig (import ./eval-modules.nix args);
+  nixosSystem =
+    args: import ./lib/combined-manager-to-nixos-config.nix (import ./lib/eval-modules.nix args);
 
   mkFlake =
     {
@@ -11,7 +12,7 @@
     }@args:
     {
       inherit description;
-      inputs = import ./eval-inputs.nix args;
-      outputs = import ./eval-outputs.nix args;
+      inputs = import ./lib/eval-inputs.nix args;
+      outputs = import ./lib/eval-outputs.nix args;
     };
 }

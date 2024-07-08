@@ -36,15 +36,22 @@ lib.evalModules {
             };
 
             os = mkOption {
-              type = types.submoduleWith {
-                # TODO Are the other specialArgs (like inputs) provided?
-                specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
-                modules =
-                  import "${nixpkgs}/nixos/modules/module-list.nix"
-                  ++ [ { nixpkgs.hostPlatform = lib.mkDefault builtins.currentSystem; } ]
-                  ++ osModules
-                  ++ config.osModules;
-              };
+              type = types.submoduleWith (
+                let
+                  config = (import "${nixpkgs}/nixos/lib/eval-config.nix" { modules = [ ]; });
+                in
+                builtins.trace (builtins.attrNames config) config
+              ) # {
+              # TODO Are the other specialArgs (like inputs) provided?
+              #specialArgs.modulesPath = "${nixpkgs}/nixos/modules";
+              #modules =
+              #  (import /${nixpkgs}/nixos/lib/eval-config.nix {});
+              #import "${nixpkgs}/nixos/modules/module-list.nix"
+              #++ [ { nixpkgs.system = lib.mkDefault builtins.currentSystem; } ]
+              #++ osModules
+              #++ config.osModules;
+              #};
+              ;
               default = { };
               visible = "shallow";
               description = "NixOS configuration.";
@@ -71,7 +78,6 @@ lib.evalModules {
         options = {
           hmUsername = mkOption {
             type = types.str;
-            default = "user";
             description = "Username used for Home Manager.";
           };
 
