@@ -1,4 +1,5 @@
 {
+  lib,
   prefix ? [ ],
   specialArgs ? { },
   useHomeManager ? true,
@@ -8,7 +9,6 @@
 }:
 let
   inherit (specialArgs.inputs) nixpkgs;
-  inherit (nixpkgs) lib;
   inherit (nixpkgs.lib) mkOption types;
 in
 lib.evalModules {

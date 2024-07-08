@@ -11,9 +11,10 @@ let
     modules: _: config:
     modules ++ config.modules
   ) [ ] args.configurations;
-  configModules = lib.modules.collectModules "" directConfigModules {
+  configModules = lib.modules.collectModules null "" directConfigModules {
     inherit lib;
     config = null;
+    options = null;
   };
   configInputs = lib.foldl (
     modules: module:
@@ -38,7 +39,7 @@ let
   inputDefs = initialInputsWithLocation ++ configInputs;
   typeCheckedInputDefs =
     let
-      wrongTypeDefs = lib.filter (def: lib.typeOf def.value != "set") inputDefs;
+      wrongTypeDefs = lib.filter (def: builtins.typeOf def.value != "set") inputDefs;
     in
     if wrongTypeDefs == [ ] then
       inputDefs
