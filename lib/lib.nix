@@ -12,11 +12,15 @@ let
 
   pkgs = import nixpkgsSrc { };
 
-  libDerivation = pkgs.stdenvNoCC.mkDerivation {
-    name = "patched-nixpkgs";
-    src = "${nixpkgsSrc}/lib";
+  modifiedLib = pkgs.stdenvNoCC.mkDerivation {
+    name = "patched-lib";
+    src = nixpkgsSrc;
+    patches = [ ./lib.patch ];
+    installPhase = ''
+    cp -r $src/lib $out
+    cat $out
+    '';
   };
-
-  output = import libDerivation;
 in
-builtins.trace (builtins.attrNames output) output
+builtins.trace modifiedLib.outPath
+(import modifiedLib)
