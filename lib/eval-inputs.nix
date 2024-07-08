@@ -1,6 +1,6 @@
 args:
 let
-  lib = import ./lib.nix args.lockFile;
+  lib = import ./lib args.lockFile;
 
   initialInputsWithLocation = lib.singleton {
     file = (builtins.unsafeGetAttrPos "initialInputs" args).file;

@@ -8,34 +8,22 @@ let
       "1pz8nmcqy68dhk6i1nkldfqask8yfp3k1qpb8apdq0dzblpwk2wb"
     else
       nodes.nixpkgs.locked.narHash;
-
   nixpkgsSrc = builtins.fetchTarball {
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
     inherit sha256;
   };
-
   pkgs = import nixpkgsSrc { };
 
-  # TODO Improve evaluation time by using the builtin derivation function and not copying the entire nixpkgs around
-  modifiedLibOld = pkgs.stdenvNoCC.mkDerivation {
-    pname = "patched-lib";
-    version = rev;
-    src = nixpkgsSrc;
-    patches = [ ./lib.patch ];
-    installPhase = "cp -r lib $out";
-  };
-
-  # TODO This actually only includes the modules.nix file
-  modifiedLib = derivation {
+  patchedLib = derivation {
     system = builtins.currentSystem;
     name = "patched-lib";
     allowSubstitutes = false;
-    builder = ./builder.sh;
+    builder = ./modules-patcher.sh;
 
-    inherit nixpkgsSrc;
-    mkdir = "${pkgs.coreutils}/bin/mkdir";
+    cp = "${pkgs.coreutils}/bin/cp";
     patch = "${pkgs.gnupatch}/bin/patch";
-    patchFile = ./lib.patch;
+    src = "${nixpkgsSrc}/lib";
+    patchFile = ./modules.patch;
   };
 in
-import modifiedLib
+import patchedLib
