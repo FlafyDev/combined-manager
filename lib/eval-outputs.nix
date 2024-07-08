@@ -1,6 +1,6 @@
 args:
 let
-  lib = import ./lib.nix args.lockFile;
+  lib = import ./lib args.lockFile;
   combinedManagerToNixosConfig = import ./combined-manager-to-nixos-config.nix;
   evalModules = import ./eval-modules.nix;
 

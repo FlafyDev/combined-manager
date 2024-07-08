@@ -12,11 +12,8 @@ let
   inherit (nixpkgs.lib) mkOption types;
 in
 lib.evalModules {
-  inherit prefix; # TODO Set a default prefix?
+  inherit prefix specialArgs;
   class = "combinedManager";
-  specialArgs = specialArgs // {
-    combinedManagerPath = ./.;
-  };
   modules =
     [
       (
@@ -55,9 +52,20 @@ lib.evalModules {
           };
 
           config._module.args = {
+            combinedManagerPath = ./.;
             osConfig = config.os;
-            # TODO Provide a simplified option tree to make it easy to copy option definitions from (maybe exclude the value property of each option).
-            osOptions = options.os.type.getSubOptions [ ];
+            osOptions =
+              let
+                getSubOptions =
+                  option:
+		  option // lib.optionalAttrs (lib.isOption option) { __functor = 10; };
+		  #lib.evalModules
+		  #builtins.trace (option.type.getSubModules)
+                  #(lib.mapAttrs (_: getSubOptions) (
+                  #  if lib.isType "option" option then option.type.getSubOptions [ ] else option
+                  #));
+              in
+              getSubOptions options.os;
           };
         }
       )
