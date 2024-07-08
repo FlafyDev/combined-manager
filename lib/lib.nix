@@ -17,13 +17,18 @@ let
   pkgs = import nixpkgsSrc { };
 
   # TODO Improve evaluation time by using the builtin derivation function and not copying the entire nixpkgs around
-  # TODO Improve evaluation time by using the builtin derivation function and not copying the entire nixpkgs around
   modifiedLib = pkgs.stdenvNoCC.mkDerivation {
     pname = "patched-lib";
     version = rev;
     src = nixpkgsSrc;
     patches = [ ./lib.patch ];
     installPhase = "cp -r lib $out";
+  };
+
+  modifiedLibImproved = derivation {
+    system = builtins.currentSystem;
+    name = "patched-lib-${rev}";
+    # TODO builder = ;
   };
 in
 import modifiedLib
