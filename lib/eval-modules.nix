@@ -2,7 +2,7 @@
   lib,
   prefix ? [ ],
   specialArgs ? { },
-  useHomeManager ? true,
+  useHm ? true,
   modules,
   osModules ? [ ],
   hmModules ? [ ],
@@ -54,26 +54,37 @@ lib.evalModules {
           config._module.args = {
             combinedManagerPath = ./.;
             osConfig = config.os;
+            # TODO Is documentation for these options generated correctly?
             osOptions =
               let
                 getSubOptions =
                   option:
-		  option // lib.optionalAttrs (lib.isOption option) { __functor = 10; };
-		  #lib.evalModules
-		  #builtins.trace (option.type.getSubModules)
-                  #(lib.mapAttrs (_: getSubOptions) (
-                  #  if lib.isType "option" option then option.type.getSubOptions [ ] else option
-                  #));
+                  if lib.isType "option" option then
+                    # option // { __functor = self: name: lib.mapAttrs (_: getSubOptions) (self.type.getSubOptions [ ]); }
+                    option
+                    // {
+                      __functor =
+                        self: name:
+                        lib.mapAttrs (_: getSubOptions)
+                          (lib.evalModules {
+                            modules = [
+                              { _module.args.name = name; }
+                            ] ++ self.type.nestedTypes.elemType.getSubModules; # TODO
+                          }).options;
+                    }
+                  else
+                    lib.mapAttrs (_: getSubOptions) option;
               in
-              getSubOptions options.os;
+              getSubOptions (options.os.type.getSubOptions [ ]);
           };
         }
       )
     ]
-    ++ lib.optional useHomeManager (
+    ++ lib.optional useHm (
       {
         inputs,
         options,
+        osOptions,
         config,
         osConfig,
         ...
@@ -91,23 +102,23 @@ lib.evalModules {
             description = "Home Manager modules.";
           };
 
-          hm = mkOption {
-            # TODO Copy the hmModule type from https://github.com/nix-community/home-manager/blob/master/nixos/common.nix
-            type = types.deferredModule;
-            default = { };
-            description = "Home Manager configuration.";
-          };
+          hm = osOptions.home-manager.users config.hmUsername;
+          #mkOption {
+          #type = types.deferredModule;
+          #default = { };
+          #description = "Home Manager configuration.";
+          #};
         };
 
         config = {
           _module.args = {
             hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            hmOptions = options.hm;
+            hmOptions = osOptions.home-manager.users config.hmUsername;
           };
 
           osModules = [ inputs.home-manager.nixosModules.default ];
 
-          os.home-manager = {
+          os.home-manager = builtins.trace "test" {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.inputs = inputs;

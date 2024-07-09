@@ -12,13 +12,14 @@ let
         configs = lib.mapAttrs (
           _: config:
           evalModules (
-            config
-            // {
+            {
               inherit lib;
               specialArgs = {
                 inherit inputs configs;
               };
+              useHm = args.useHomeManager or true;
             }
+            // config
           )
         ) args.configurations;
       in
