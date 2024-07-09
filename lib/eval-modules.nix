@@ -58,36 +58,29 @@ lib.evalModules {
             osOptions =
               let
                 getSubOptions =
-                  option:
-                  if !lib.isType "option" option then
-                    lib.mapAttrs (_: getSubOptions) option
-                  # TODO Support listOf, functionTo
-                  # TODO Throw if the option is unsupported
-                  else if option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf" then
-                    option
-                    // {
-                      __functor =
-                        self: name: lib.mapAttrs (_: getSubOptions) (self.type.nestedTypes.elemType.getSubOptions [ "TEST" ]);
-                    }
-                  else
-                    option
-                    // {
-                      __functor = self: name: lib.mapAttrs (_: getSubOptions) (self.types.getSubOptions [ ]);
-                    };
-                #option
-                #// {
-                #  __functor =
-                #    self: name:
-                #    lib.mapAttrs (_: getSubOptions)
-                #     (lib.evalModules {
-                #       modules = [
-                #          { _module.args.name = name; }
-                #         ] ++ self.type.nestedTypes.elemType.getSubModules; # TODO
-                #       }).options;
-                #}
-
+                  _: option:
+                  # TODO Support listOf, functionTo, and standalone submodules
+                  builtins.trace (option.type.name) (
+                    if
+                      (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                      && option.type.nestedTypes.elemType.name == "submodule"
+                    then
+                      option
+                      // {
+                        __functor =
+                          self: name:
+                          # TODO Use specialArgs instead of _module.args.name?
+                          lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
+                            (lib.evalModules {
+                              modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
+                            }).options;
+                      }
+                    else
+                      option
+                  );
               in
-              getSubOptions (options.os.type.getSubOptions [ ]);
+              # TODO Handle like getSubOptions handles a standalone submodule
+              lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions (options.os.type.getSubOptions [ ]);
           };
         }
       )
