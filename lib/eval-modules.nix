@@ -59,21 +59,33 @@ lib.evalModules {
               let
                 getSubOptions =
                   option:
-                  if lib.isType "option" option then
-                    # option // { __functor = self: name: lib.mapAttrs (_: getSubOptions) (self.type.getSubOptions [ ]); }
+                  if !lib.isType "option" option then
+                    lib.mapAttrs (_: getSubOptions) option
+                  # TODO Support listOf, functionTo
+                  # TODO Throw if the option is unsupported
+                  else if option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf" then
                     option
                     // {
                       __functor =
-                        self: name:
-                        lib.mapAttrs (_: getSubOptions)
-                          (lib.evalModules {
-                            modules = [
-                              { _module.args.name = name; }
-                            ] ++ self.type.nestedTypes.elemType.getSubModules; # TODO
-                          }).options;
+                        self: name: lib.mapAttrs (_: getSubOptions) (self.type.nestedTypes.elemType.getSubOptions [ "TEST" ]);
                     }
                   else
-                    lib.mapAttrs (_: getSubOptions) option;
+                    option
+                    // {
+                      __functor = self: name: lib.mapAttrs (_: getSubOptions) (self.types.getSubOptions [ ]);
+                    };
+                #option
+                #// {
+                #  __functor =
+                #    self: name:
+                #    lib.mapAttrs (_: getSubOptions)
+                #     (lib.evalModules {
+                #       modules = [
+                #          { _module.args.name = name; }
+                #         ] ++ self.type.nestedTypes.elemType.getSubModules; # TODO
+                #       }).options;
+                #}
+
               in
               getSubOptions (options.os.type.getSubOptions [ ]);
           };
@@ -102,12 +114,16 @@ lib.evalModules {
             description = "Home Manager modules.";
           };
 
-          hm = osOptions.home-manager.users config.hmUsername;
-          #mkOption {
-          #type = types.deferredModule;
-          #default = { };
-          #description = "Home Manager configuration.";
-          #};
+          hm =
+            #  let
+            #    result = (osOptions.home-manager.users config.hmUsername);
+            #  in
+            #  builtins.trace (builtins.attrNames result.description) result;
+            mkOption {
+              type = types.deferredModule;
+              default = { };
+              description = "Home Manager configuration.";
+            };
         };
 
         config = {

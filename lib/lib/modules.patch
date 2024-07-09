@@ -1,5 +1,5 @@
 diff --git a/lib/modules.nix b/lib/modules.nix
-index b9e9ca1e5d78..31c38c4908ec 100644
+index b9e9ca1e5d78..99a699a9e22d 100644
 --- a/lib/modules.nix
 +++ b/lib/modules.nix
 @@ -473,17 +473,28 @@ let
@@ -18,7 +18,7 @@ index b9e9ca1e5d78..31c38c4908ec 100644
        else
 +        let
 +          additionalConfig =
-+            optionalAttrs (m ? inputs || m.config ? inputs) { inputs = (m.inputs or {}) // (m.config.inputs or {}); }
++            optionalAttrs (m ? inputs || (m.config or {}) ? inputs) { inputs = (m.inputs or {}) // (m.config.inputs or {}); }
 +            // optionalAttrs (m ? osImports) { osModules = (m.osImports or []) ++ (m.config.osModules or []); }
 +            // optionalAttrs (m ? hmImports) { hmModules = (m.hmImports or []) ++ (m.config.hmModules or []); };
 +        in
