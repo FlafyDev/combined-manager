@@ -26,7 +26,7 @@ lib.evalModules {
               description = "Inputs";
             };
 
-            osModules = mkOption {
+            osImports = mkOption {
               type = with types; listOf raw;
               default = [ ];
               description = "NixOS modules.";
@@ -43,7 +43,7 @@ lib.evalModules {
                     modulesPath = "${nixpkgs}/nixos/modules";
                   } // specialArgs;
                   modules =
-                    baseModules ++ [ { _module.args.baseModules = baseModules; } ] ++ osModules ++ config.osModules;
+                    baseModules ++ [ { _module.args.baseModules = baseModules; } ] ++ osModules ++ config.osImports;
                 };
               default = { };
               visible = "shallow";
@@ -101,7 +101,7 @@ lib.evalModules {
             description = "Username used for Home Manager.";
           };
 
-          hmModules = mkOption {
+          hmImports = mkOption {
             type = with types; listOf raw;
             default = [ ];
             description = "Home Manager modules.";
@@ -125,13 +125,13 @@ lib.evalModules {
             hmOptions = osOptions.home-manager.users config.hmUsername;
           };
 
-          osModules = [ inputs.home-manager.nixosModules.default ];
+          osImports = [ inputs.home-manager.nixosModules.default ];
 
           os.home-manager = builtins.trace "test" {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.inputs = inputs;
-            sharedModules = hmModules ++ config.hmModules;
+            sharedModules = hmModules ++ config.hmImports;
             users.${config.hmUsername} = config.hm;
           };
         };
