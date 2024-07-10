@@ -51,13 +51,26 @@ lib.evalModules {
                   modules =
                     baseModules
                     ++ [
-                      {
-                        _module.args = {
-                          inherit baseModules extraModules;
-                          modules = osModules;
-                        };
-                        nixpkgs.system = system; # Required for some module args
-                      }
+                      (
+                        { config, ... }:
+                        {
+                          _module.args = {
+                            inherit baseModules extraModules;
+                            modules = osModules;
+                          };
+                          nixpkgs = {
+                            inherit system;
+                            pkgs = import nixpkgs {
+                              inherit (config.nixpkgs)
+                                config
+                                overlays
+                                localSystem
+                                crossSystem
+                                ;
+                            };
+                          };
+                        }
+                      )
                     ]
                     ++ osModules;
                 };
@@ -69,6 +82,7 @@ lib.evalModules {
 
           config._module.args = {
             combinedManagerPath = ./.;
+            pkgs = config.os.nixpkgs.pkgs;
             osConfig = config.os;
             # TODO Is documentation for these options generated correctly?
             osOptions =
