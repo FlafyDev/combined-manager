@@ -69,6 +69,7 @@ lib.evalModules {
                                 ;
                             };
                           };
+                          home-manager.sharedModules = hmModules;
                         }
                       )
                     ]
@@ -90,26 +91,23 @@ lib.evalModules {
                 getSubOptions =
                   _: option:
                   # TODO Support listOf, functionTo, and standalone submodules
-                  builtins.trace (option.type.name) (
-                    if
-                      (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
-                      && option.type.nestedTypes.elemType.name == "submodule"
-                    then
-                      option
-                      // {
-                        __functor =
-                          self: name:
-                          # TODO Use specialArgs instead of _module.args.name?
-                          lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-                            (lib.evalModules {
-                              modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
-                            }).options;
-                      }
-                    else
-                      option
-                  );
+                  if
+                    (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                    && option.type.nestedTypes.elemType.name == "submodule"
+                  then
+                    option
+                    // {
+                      __functor =
+                        self: name:
+                        # TODO Use specialArgs instead of _module.args.name?
+                        lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
+                          (lib.evalModules {
+                            modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
+                          }).options;
+                    }
+                  else
+                    option;
               in
-              # TODO Handle like getSubOptions handles a standalone submodule
               lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions (options.os.type.getSubOptions [ ]);
           };
         }
@@ -118,7 +116,6 @@ lib.evalModules {
     ++ lib.optional useHm (
       {
         inputs,
-        options,
         osOptions,
         config,
         osConfig,
@@ -137,16 +134,11 @@ lib.evalModules {
             description = "Home Manager modules.";
           };
 
-          hm =
-            #  let
-            #    result = (osOptions.home-manager.users config.hmUsername);
-            #  in
-            #  builtins.trace (builtins.attrNames result.description) result;
-            mkOption {
-              type = types.deferredModule;
-              default = { };
-              description = "Home Manager configuration.";
-            };
+          hm = mkOption {
+            type = types.deferredModule;
+            default = { };
+            description = "Home Manager configuration.";
+          };
         };
 
         config = {
@@ -159,7 +151,6 @@ lib.evalModules {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.inputs = inputs;
-            sharedModules = hmModules;
             users.${config.hmUsername} = config.hm;
           };
         };
