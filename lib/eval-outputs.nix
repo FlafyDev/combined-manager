@@ -32,22 +32,43 @@ let
       ) [ ] configModules;
 
       useHm = args.useHomeManager or true;
+
+      module = evalModules (
+        config
+        // {
+          inherit lib useHm;
+          system = args.system;
+          specialArgs = {
+            inherit inputs configs;
+          };
+          osModules =
+            config.osModules or [ ]
+            ++ configOsModules
+            ++ lib.optional useHm inputs.home-manager.nixosModules.default;
+          hmModules = config.hmModules or [ ] ++ configHmModules;
+        }
+      );
+
+      showWarnings =
+        module:
+        lib.foldl (
+          module: warning: builtins.trace "[1;31mwarning: ${warning}[0m" module
+        ) module module.config.warnings;
+
+      showErrors =
+        module:
+        let
+          failedAssertions = lib.map (x: x.message) (lib.filter (x: !x.assertion) module.config.assertions);
+        in
+        if failedAssertions == [ ] then
+          module
+        else
+          throw ''
+
+            Failed assertions:
+            ${lib.concatStringsSep "\n" (lib.map (x: "- ${x}") failedAssertions)}'';
     in
-    evalModules (
-      config
-      // {
-        inherit lib useHm;
-        system = args.system;
-        specialArgs = {
-          inherit inputs configs;
-        };
-        osModules =
-          config.osModules or [ ]
-          ++ configOsModules
-          ++ lib.optional useHm inputs.home-manager.nixosModules.default;
-        hmModules = config.hmModules or [ ] ++ configHmModules;
-      }
-    );
+    showErrors (showWarnings module);
 
   explicitOutputs = (args.outputs or (_: { })) (args // { self = outputs; });
   nixosConfigurations =

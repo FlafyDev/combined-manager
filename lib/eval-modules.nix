@@ -112,6 +112,7 @@ lib.evalModules {
           };
         }
       )
+      "${nixpkgs}/nixos/modules/misc/assertions.nix"
     ]
     ++ lib.optional useHm (
       {
@@ -142,9 +143,35 @@ lib.evalModules {
         };
 
         config = {
-          _module.args = {
+          _module.args = rec {
             hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            hmOptions = osOptions.home-manager.users config.hmUsername;
+
+            # TODO No duplication
+            hmOptions =
+              let
+                getSubOptions =
+                  _: option:
+                  # TODO Support listOf, functionTo, and standalone submodules
+                  if
+                    (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                    && option.type.nestedTypes.elemType.name == "submodule"
+                  then
+                    option
+                    // {
+                      __functor =
+                        self: name:
+                        # TODO Use specialArgs instead of _module.args.name?
+                        lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
+                          (lib.evalModules {
+                            modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
+                          }).options;
+                    }
+                  else
+                    option;
+              in
+              lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
+                (lib.evalModules { modules = osOptions.home-manager.users.type.getSubModules ++ [ hmConfig ]; })
+                .options;
           };
 
           os.home-manager = {
