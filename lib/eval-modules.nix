@@ -3,13 +3,13 @@
   system,
   prefix ? [ ],
   specialArgs ? { },
-  useHm ? true,
   modules,
   osModules ? [ ],
   hmModules ? [ ],
 }:
 let
   inherit (specialArgs.inputs) nixpkgs;
+  inherit (specialArgs) useHm;
   inherit (nixpkgs.lib) mkOption types;
 in
 lib.evalModules {
@@ -46,6 +46,7 @@ lib.evalModules {
                 types.submoduleWith {
                   class = "nixos";
                   specialArgs = {
+                    inherit useHm;
                     modulesPath = "${nixpkgs}/nixos/modules";
                   } // specialArgs;
                   modules =

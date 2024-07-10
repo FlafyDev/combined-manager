@@ -36,10 +36,10 @@ let
       module = evalModules (
         config
         // {
-          inherit lib useHm;
+          inherit lib;
           system = args.system;
           specialArgs = {
-            inherit inputs configs;
+            inherit inputs useHm configs;
           };
           osModules =
             config.osModules or [ ]
