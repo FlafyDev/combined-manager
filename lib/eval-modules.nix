@@ -37,6 +37,11 @@ lib.evalModules {
               type =
                 let
                   baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
+                  extraModules =
+                    let
+                      e = builtins.getEnv "NIXOS_EXTRA_MODULE_PATH";
+                    in
+                    lib.optional (e != "") (import e);
                 in
                 types.submoduleWith {
                   class = "nixos";
@@ -47,7 +52,10 @@ lib.evalModules {
                     baseModules
                     ++ [
                       {
-                        _module.args.baseModules = baseModules;
+                        _module.args = {
+                          inherit baseModules extraModules;
+                          modules = osModules;
+                        };
                         nixpkgs.system = system; # Required for some module args
                       }
                     ]
@@ -104,6 +112,8 @@ lib.evalModules {
         ...
       }:
       {
+        osImports = [ inputs.home-manager.nixosModules.default ];
+
         options = {
           hmUsername = mkOption {
             type = types.str;
@@ -133,8 +143,6 @@ lib.evalModules {
             hmConfig = osConfig.home-manager.users.${config.hmUsername};
             hmOptions = osOptions.home-manager.users config.hmUsername;
           };
-
-          osImports = [ inputs.home-manager.nixosModules.default ];
 
           os.home-manager = {
             useGlobalPkgs = true;
