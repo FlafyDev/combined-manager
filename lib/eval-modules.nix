@@ -59,8 +59,7 @@ lib.evalModules {
                         nixpkgs.system = system; # Required for some module args
                       }
                     ]
-                    ++ osModules
-                    ++ config.osImports;
+                    ++ osModules;
                 };
               default = { };
               visible = "shallow";
@@ -112,8 +111,6 @@ lib.evalModules {
         ...
       }:
       {
-        osImports = [ inputs.home-manager.nixosModules.default ];
-
         options = {
           hmUsername = mkOption {
             type = types.str;
@@ -148,7 +145,7 @@ lib.evalModules {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.inputs = inputs;
-            sharedModules = hmModules ++ config.hmImports;
+            sharedModules = hmModules;
             users.${config.hmUsername} = config.hm;
           };
         };

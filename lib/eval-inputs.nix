@@ -13,8 +13,8 @@ let
   ) [ ] args.configurations;
   configModules = lib.modules.collectModules null "" directConfigModules {
     inherit lib;
-    config = null;
     options = null;
+    config = null;
   };
   configInputs = lib.foldl (
     modules: module:
@@ -60,7 +60,7 @@ lib.foldlAttrs (
       })
     ) [ ] typeCheckedInputDefs;
     firstDef = lib.head defs;
-    areDefsEqual = lib.all (def: firstDef.value == def.value) (lib.drop 1 defs);
+    areDefsEqual = lib.all (def: firstDef.value == def.value) defs;
   in
   if areDefsEqual then
     inputs

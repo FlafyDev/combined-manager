@@ -1,8 +1,4 @@
 {
-  # TODO eval-modules.nix requires the parameter lib, which takes the modified nixpkgs lib
-  nixosSystem =
-    args: import ./lib/combined-manager-to-nixos-config.nix (import ./lib/eval-modules.nix args);
-
   mkFlake =
     {
       description,
