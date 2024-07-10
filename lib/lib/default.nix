@@ -1,4 +1,4 @@
-lockFile:
+{ lockFile, system, ... }:
 let
   inherit (builtins.fromJSON (builtins.readFile lockFile)) nodes;
   useFixed = !builtins.pathExists lockFile || !nodes ? nixpkgs;
@@ -12,10 +12,10 @@ let
     url = "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
     inherit sha256;
   };
-  pkgs = import nixpkgsSrc { };
+  pkgs = import nixpkgsSrc { inherit system; };
 
   patchedLib = derivation {
-    system = builtins.currentSystem;
+    inherit system;
     name = "patched-lib";
     allowSubstitutes = false;
     builder = ./modules-patcher.sh;

@@ -1,5 +1,6 @@
 {
   lib,
+  system,
   prefix ? [ ],
   specialArgs ? { },
   useHm ? true,
@@ -43,7 +44,15 @@ lib.evalModules {
                     modulesPath = "${nixpkgs}/nixos/modules";
                   } // specialArgs;
                   modules =
-                    baseModules ++ [ { _module.args.baseModules = baseModules; } ] ++ osModules ++ config.osImports;
+                    baseModules
+                    ++ [
+                      {
+                        _module.args.baseModules = baseModules;
+                        nixpkgs.system = system; # Required for some module args
+                      }
+                    ]
+                    ++ osModules
+                    ++ config.osImports;
                 };
               default = { };
               visible = "shallow";
@@ -127,7 +136,7 @@ lib.evalModules {
 
           osImports = [ inputs.home-manager.nixosModules.default ];
 
-          os.home-manager = builtins.trace "test" {
+          os.home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
             extraSpecialArgs.inputs = inputs;

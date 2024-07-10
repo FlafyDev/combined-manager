@@ -7,6 +7,7 @@
     {
       description,
       lockFile,
+      system, # Required for evaluating flake inputs
       initialInputs ? { },
       useHomeManager ? true,
       configurations,

@@ -1,10 +1,10 @@
-args:
+args: inputs:
 let
-  lib = import ./lib args.lockFile;
+  lib = import ./lib args;
   combinedManagerToNixosConfig = import ./combined-manager-to-nixos-config.nix;
   evalModules = import ./eval-modules.nix;
 
-  explicitOutputs = (args.outputs or (_: { })) args;
+  explicitOutputs = (args.outputs or (_: { })) (args // { self = outputs; });
   nixosConfigurations =
     inputs:
     lib.mapAttrs (_: combinedManagerToNixosConfig) (
@@ -14,6 +14,7 @@ let
           evalModules (
             {
               inherit lib;
+	      system = args.system;
               specialArgs = {
                 inherit inputs configs;
               };
@@ -25,9 +26,9 @@ let
       in
       configs
     );
+
+  outputs = explicitOutputs // {
+    nixosConfigurations = nixosConfigurations inputs // explicitOutputs.nixosConfigurations or { };
+  };
 in
-inputs:
-explicitOutputs
-// {
-  nixosConfigurations = nixosConfigurations inputs // explicitOutputs.nixosConfigurations or { };
-}
+outputs
