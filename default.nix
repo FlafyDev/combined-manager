@@ -3,12 +3,16 @@
     {
       description,
       lockFile,
-      system, # Required for evaluating flake inputs
+      system,
+      stateVersion,
       initialInputs ? { },
       useHomeManager ? true,
       configurations,
       outputs ? (_: { }),
     }@args:
+    let
+      lib = import ./lib args;
+    in
     {
       inherit description;
       inputs = import ./lib/eval-inputs.nix args;

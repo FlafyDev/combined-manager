@@ -14,16 +14,15 @@ let
   };
   pkgs = import nixpkgsSrc { inherit system; };
 
-  patchedLib = derivation {
-    inherit system;
-    name = "patched-lib";
-    allowSubstitutes = false;
-    builder = ./modules-patcher.sh;
-
-    cp = "${pkgs.coreutils}/bin/cp";
-    patch = "${pkgs.gnupatch}/bin/patch";
-    src = "${nixpkgsSrc}/lib";
-    patchFile = ./modules.patch;
-  };
 in
-import patchedLib
+import (derivation {
+  inherit system;
+  name = "patched-lib";
+  allowSubstitutes = false;
+  builder = ./modules-patcher.sh;
+
+  cp = "${pkgs.coreutils}/bin/cp";
+  patch = "${pkgs.gnupatch}/bin/patch";
+  src = "${nixpkgsSrc}/lib";
+  patchFile = ./modules.patch;
+})

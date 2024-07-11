@@ -2,7 +2,7 @@ args:
 let
   lib = import ./lib args;
 
-  initialInputsWithLocation = lib.singleton {
+  initialInputsWithLocation = lib.optional (args ? initialInputs) {
     file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
     value = args.initialInputs;
   };

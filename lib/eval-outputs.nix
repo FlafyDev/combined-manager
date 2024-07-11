@@ -13,7 +13,6 @@ let
         config = null;
       };
 
-      # TODO Reuse this function, instead of duplicating it (also used in eval-inputs.nix)
       findImports =
         name: x:
         if x ? ${name} then
@@ -37,7 +36,7 @@ let
         config
         // {
           inherit lib;
-          system = args.system;
+          inherit (args) system stateVersion;
           specialArgs = {
             inherit inputs useHm configs;
           };
@@ -58,7 +57,9 @@ let
       showErrors =
         module:
         let
-          failedAssertions = lib.map (x: x.message) (lib.filter (x: !x.assertion) module.config.assertions);
+          failedAssertions = lib.lists.map (x: x.message) (
+            lib.filter (x: !x.assertion) module.config.assertions
+          ); # TODO Import lib gloally
         in
         if failedAssertions == [ ] then
           module
