@@ -100,10 +100,27 @@ lib.evalModules {
                       // {
                         __functor =
                           self: name:
-                          # TODO Use specialArgs instead of _module.args.name?
                           lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
                             (lib.evalModules {
-                              modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
+                              modules = [
+			        {
+				  _module.args.name = name;
+				}
+                                #{
+                                #  options = builtins.trace "TEST" (
+                                #    let
+                                #      options = self.type.getSubOptions [ ];
+                                #      optionsAfter = options // {
+                                #        # TODO Find a cleaner way to do this.
+                                #        _module = lib.recursiveUpdate (lib.removeAttrs options._module [
+                                #          "freeformType"
+                                #          "check"
+                                #        ]) { args.value.name = name; };
+                                #      };
+                                #    in
+                                #    builtins.trace (optionsAfter._module.args.value.name) optionsAfter);
+                                #}
+                              ] ++ self.type.nestedTypes.elemType.getSubModules;
                               #++ (builtins.trace (builtins.attrNames self.value) [ self.loc ]);
                             }).options;
                       }
