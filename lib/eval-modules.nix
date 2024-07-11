@@ -101,7 +101,7 @@ lib.evalModules {
                         __functor =
                           self: name:
                           lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-                            (lib.evalModules {
+                            (let r = lib.evalModules {
                               modules = [
 			        {
 				  _module.args.name = name;
@@ -120,9 +120,10 @@ lib.evalModules {
                                 #    in
                                 #    builtins.trace (optionsAfter._module.args.value.name) optionsAfter);
                                 #}
-                              ] ++ self.type.nestedTypes.elemType.getSubModules;
+			      # TODO Don't use self, instead use the top level options to get the updated values.
+                              ] ++ (let m = self.type.nestedTypes.elemType.getSubModules; in builtins.trace m m);
                               #++ (builtins.trace (builtins.attrNames self.value) [ self.loc ]);
-                            }).options;
+                            }; in builtins.trace "Eval" r).options;
                       }
                     else if option.type.name == "submodule" then
                       option
@@ -130,11 +131,13 @@ lib.evalModules {
                         __functor =
                           self: name:
                           lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
+			   # TODO
                             (lib.evalModules { modules = self.getSubModules ++ [ self.loc ]; }).options;
                       }
                     else
                       option;
                 in
+		# TODO Use getSubOptions [] instead of evalModules (does the same thing)
                 lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
                   (lib.evalModules {
                     modules = [
@@ -143,12 +146,11 @@ lib.evalModules {
                           let
                             allOptions = options.os.type.getSubOptions [ ];
                           in
-                          lib.filterAttrs (name: value: name != "_module") allOptions;
+                          builtins.trace allOptions.environment.persistence.value (lib.filterAttrs (name: value: name != "_module") allOptions);
                       }
                     ];
                   }).options;
             };
-
           };
         }
       )
