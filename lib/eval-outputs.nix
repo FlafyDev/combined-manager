@@ -1,5 +1,5 @@
 {
-  stateVersion,
+  stateVersion ? null,
   useHomeManager ? true,
   configurations,
   outputs ? (_: { }),
@@ -22,25 +22,26 @@ let
       };
 
       findImports =
-        name: x:
-        if x ? ${name} then
-          x.${name}
-        else if x ? content then
-          findImports name x.content
+        name: module:
+        if module ? ${name} then
+          module.${name}
+        else if module ? content then
+          findImports name module.content
+        else if module ? contents then
+          lib.foldl (imports: x: imports ++ findImports name x) [ ] module.contents
         else
           [ ];
 
       configOsModules = foldl (
-        modules: module: modules ++ findImports "osImports" module.config
+        defs: module: defs ++ findImports "osImports" module.config
       ) [ ] configModules;
       configHmModules = foldl (
-        modules: module: modules ++ findImports "hmImports" module.config
+        defs: module: defs ++ findImports "hmImports" module.config
       ) [ ] configModules;
 
       useHm = config.useHm or useHomeManager;
-
       module = evalModules {
-        inherit stateVersion;
+        stateVersion = config.stateVersion or stateVersion;
         prefix = config.prefix or [ ];
         specialArgs = {
           inherit inputs useHm configs;
@@ -74,7 +75,7 @@ let
     in
     showErrors (showWarnings module);
 
-  explicitOutputs = outputs (args // { self = result; });
+  explicitOutputs = outputs inputs;
   nixosConfigurations =
     inputs:
     mapAttrs

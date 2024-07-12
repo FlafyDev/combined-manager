@@ -6,12 +6,13 @@
   osModules ? [ ],
   hmModules ? [ ],
 }:
+with specialArgs.inputs.nixpkgs.lib;
 let
   inherit (specialArgs.inputs) nixpkgs;
   inherit (nixpkgs) lib;
   modifiedLib = import ./modified-lib.nix lib;
   inherit (specialArgs) useHm;
-  inherit (lib) mkOption types;
+  inherit mkOption types;
 
   osSpecialArgs = specialArgs // {
     modulesPath = "${nixpkgs}/nixos/modules";
@@ -22,7 +23,7 @@ let
     let
       e = builtins.getEnv "NIXOS_EXTRA_MODULE_PATH";
     in
-    lib.optional (e != "") (import e);
+    optional (e != "") (import e);
   allOsModules = osBaseModules ++ osExtraModules ++ osModules;
 in
 modifiedLib.evalModules {
@@ -61,7 +62,7 @@ modifiedLib.evalModules {
                       };
                       system.stateVersion = stateVersion;
                     }
-                    // lib.optionalAttrs useHm {
+                    // optionalAttrs useHm {
                       home-manager.sharedModules = hmModules ++ [ { home.stateVersion = stateVersion; } ];
                     }
                   )
@@ -77,7 +78,7 @@ modifiedLib.evalModules {
             combinedManagerPath = ./.;
 
             pkgs =
-              (lib.evalModules {
+              (evalModules {
                 modules = [
                   "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
                   {
@@ -104,30 +105,28 @@ modifiedLib.evalModules {
                     // {
                       __functor =
                         self: name:
-                        lib.mapAttrsRecursiveCond (x: !lib.isOption x) enhanceOption
-                          (lib.evalModules { modules = [ { _module.args.name = name; } ] ++ self.type.getSubModules; })
-                          .options;
+                        mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                          (evalModules { modules = [ { _module.args.name = name; } ] ++ self.type.getSubModules; }).options;
                     }
                   else
                     option;
               in
-              lib.mapAttrsRecursiveCond (x: !lib.isOption x) enhanceOption
-                (lib.evalModules {
+              mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                (evalModules {
                   specialArgs = osSpecialArgs;
                   modules = allOsModules ++ [
                     (
                       let
                         osOptions = options.os.type.getSubOptions [ ];
-                        filteredOsOptions = (lib.removeAttrs osOptions [ "_module" ]) // {
-                          nixpkgs = lib.removeAttrs osOptions.nixpkgs [ "pkgs" ];
+                        filteredOsOptions = (removeAttrs osOptions [ "_module" ]) // {
+                          nixpkgs = removeAttrs osOptions.nixpkgs [ "pkgs" ];
                         };
-                        filteredOptions = lib.filterAttrsRecursive (
-                          name: x: !lib.isOption x || !lib.hasPrefix "Alias of" x.description or ""
+                        # TODO Try relying on option.isDefined instead of the description
+                        filteredOptions = filterAttrsRecursive (
+                          name: x: !isOption x || !hasPrefix "Alias of" x.description or ""
                         ) filteredOsOptions;
                       in
-                      lib.mapAttrsRecursiveCond (x: !lib.isOption x) (
-                        path: _: lib.getAttrFromPath path config.os
-                      ) filteredOptions
+                      mapAttrsRecursiveCond (x: !isOption x) (path: _: getAttrFromPath path config.os) filteredOptions
                     )
                   ];
                 }).options;
@@ -135,49 +134,65 @@ modifiedLib.evalModules {
         }
       )
       "${nixpkgs}/nixos/modules/misc/assertions.nix"
+      (doRename {
+        from = [ "osModules" ];
+        to = [ "osImports" ];
+        visible = false;
+        warn = false;
+        use = x: x;
+      })
     ]
-    ++ lib.optional useHm (
-      {
-        inputs,
-        osOptions,
-        config,
-        osConfig,
-        ...
-      }:
-      {
-        options = {
-          hmUsername = mkOption {
-            type = types.str;
-            description = "Username used for Home Manager.";
+    ++ optionals useHm [
+      (
+        {
+          inputs,
+          osOptions,
+          config,
+          osConfig,
+          ...
+        }:
+        {
+          options = {
+            hmUsername = mkOption {
+              type = types.str;
+              description = "Username used for Home Manager.";
+            };
+
+            hmImports = mkOption {
+              type = with types; listOf raw;
+              default = [ ];
+              description = "Home Manager modules.";
+            };
+
+            hm = mkOption {
+              type = types.deferredModule;
+              default = { };
+              description = "Home Manager configuration.";
+            };
           };
 
-          hmImports = mkOption {
-            type = with types; listOf raw;
-            default = [ ];
-            description = "Home Manager modules.";
-          };
+          config = {
+            _module.args = {
+              hmConfig = osConfig.home-manager.users.${config.hmUsername};
+              hmOptions = osOptions.home-manager.users config.hmUsername;
+            };
 
-          hm = mkOption {
-            type = types.deferredModule;
-            default = { };
-            description = "Home Manager configuration.";
+            os.home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = specialArgs;
+              users.${config.hmUsername} = config.hm;
+            };
           };
-        };
-
-        config = {
-          _module.args = {
-            hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            hmOptions = osOptions.home-manager.users config.hmUsername;
-          };
-
-          os.home-manager = {
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            extraSpecialArgs = specialArgs;
-            users.${config.hmUsername} = config.hm;
-          };
-        };
-      }
-    )
+        }
+      )
+      (doRename {
+        from = [ "hmModules" ];
+        to = [ "hmImports" ];
+        visible = false;
+        warn = true;
+        use = x: x;
+      })
+    ]
     ++ modules;
 }

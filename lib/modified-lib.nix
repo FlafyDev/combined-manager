@@ -24,6 +24,8 @@
 lib:
 with lib;
 let
+  inherit (lib.options) showDefs;
+
   /*
     See https://nixos.org/manual/nixpkgs/unstable/#module-system-lib-evalModules
       or file://./../doc/module-system/module-system.chapter.md

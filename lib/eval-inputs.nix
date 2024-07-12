@@ -26,23 +26,27 @@ let
     config = null;
   };
   configInputs = foldl (
-    modules: module:
+    defs: module:
     let
-      findInputs =
-        x:
-        if x ? inputs then
-          x.inputs
-        else if x ? content then
-          findInputs x.content
+      findDefs =
+        module:
+        if module ? inputs then
+          [ module.inputs ]
+        else if module ? content then
+          findDefs module.content
+        else if module ? contents then
+          lib.foldl (defs: x: defs ++ findDefs x) [ ] module.contents
         else
           [ ];
-      inputs = findInputs module.config;
+      moduleDefs = findDefs module.config;
     in
-    modules
-    ++ optional (inputs != [ ]) {
-      file = module._file;
-      value = inputs;
-    }
+    defs
+    ++ optionals (moduleDefs != [ ]) (
+      map (def: {
+        file = module._file;
+        value = def;
+      }) moduleDefs
+    )
   ) [ ] configModules;
 
   inputDefs = initialInputsWithLocation ++ configInputs;
