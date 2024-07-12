@@ -10,9 +10,6 @@
       configurations,
       outputs ? (_: { }),
     }@args:
-    let
-      lib = import ./lib args;
-    in
     {
       inherit description;
       inputs = import ./lib/eval-inputs.nix args;

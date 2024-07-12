@@ -1,5 +1,4 @@
 {
-  lib,
   system,
   stateVersion,
   prefix ? [ ],
@@ -7,11 +6,13 @@
   modules,
   osModules ? [ ],
   hmModules ? [ ],
-}:
+}@args: # TODO Remove
 let
   inherit (specialArgs.inputs) nixpkgs;
+  inherit (nixpkgs) lib;
+  modifiedLib = import ./modified-lib.nix lib;
   inherit (specialArgs) useHm;
-  inherit (nixpkgs.lib) mkOption types;
+  inherit (lib) mkOption types;
 
   osBaseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
   osExtraModules =
@@ -21,7 +22,7 @@ let
     lib.optional (e != "") (import e);
   allOsModules = osBaseModules ++ osExtraModules ++ osModules;
 in
-lib.evalModules {
+modifiedLib.evalModules {
   inherit prefix specialArgs;
   class = "combinedManager";
   modules =
@@ -43,114 +44,183 @@ lib.evalModules {
             };
 
             os = mkOption {
-              type = types.submoduleWith {
-                class = "nixos";
-                specialArgs = {
-                  inherit useHm;
-                  modulesPath = "${nixpkgs}/nixos/modules";
-                } // specialArgs;
-                modules = allOsModules ++ [
-                  (
-                    { config, ... }:
-                    {
-                      _module.args = {
-                        baseModules = osBaseModules;
-                        extraModules = osExtraModules;
-                        modules = osModules;
-                      };
-                      system.stateVersion = stateVersion;
-                      nixpkgs = {
-                        inherit system;
-                        pkgs = import nixpkgs {
-                          inherit (config.nixpkgs)
-                            config
-                            overlays
-                            localSystem
-                            crossSystem
-                            ;
+              type =
+                let
+                  class = "nixos";
+                  specialArgs = {
+                    inherit useHm;
+                    modulesPath = "${nixpkgs}/nixos/modules";
+                  } // args.specialArgs;
+                  modules = allOsModules ++ [
+                    (
+                      { config, ... }:
+                      {
+                        _module.args = {
+                          baseModules = osBaseModules;
+                          extraModules = osExtraModules;
+                          modules = osModules;
                         };
-                      };
-                      home-manager.sharedModules = hmModules ++ [ { home.stateVersion = stateVersion; } ];
-                    }
-                  )
-                ];
-              };
+                        system.stateVersion = stateVersion;
+                      }
+                      // lib.optionalAttrs useHm {
+
+                        home-manager.sharedModules = hmModules ++ [ { home.stateVersion = stateVersion; } ];
+                      }
+                    )
+                  ];
+
+                  inherit (lib.modules) evalModules;
+
+                  allModules =
+                    defs:
+                    map (
+                      { value, file }:
+                      {
+                        _file = file;
+                        imports = [ value ];
+                      }
+                    ) defs;
+
+                  base = evalModules {
+                    inherit class specialArgs;
+                    modules = [
+                      {
+
+                      }
+                    ] ++ modules;
+                  };
+
+                  freeformType = base._module.freeformType;
+
+                  name = "osSubmodule";
+                in
+                lib.mkOptionType {
+                  inherit name;
+                  description = freeformType.description or name;
+                  check = x: lib.isAttrs x || lib.isFunction x || lib.path.check x;
+                  merge =
+                    loc: defs:
+                    (base.extendModules {
+                      modules = allModules defs;
+                      prefix = loc;
+                    }).config;
+                  getSubOptions =
+                    prefix:
+                    (base.extendModules { inherit prefix; }).options
+                    // lib.optionalAttrs (freeformType != null) {
+                      # Expose the sub options of the freeform type. Note that the option
+                      # discovery doesn't care about the attribute name used here, so this
+                      # is just to avoid conflicts with potential options from the submodule
+                      _freeformOptions = freeformType.getSubOptions prefix;
+                    };
+                  getSubModules = modules;
+                  substSubModules =
+                    m:
+                    types.submoduleWith {
+                      modules = m;
+                      inherit specialArgs class;
+                    };
+                  nestedTypes = lib.optionalAttrs (freeformType != null) { freeformType = freeformType; };
+                };
               default = { };
               visible = "shallow";
               description = "NixOS configuration.";
             };
           };
 
-          config = {
-            _module.args = {
-              combinedManagerPath = ./.;
-              pkgs = config.os.nixpkgs.pkgs;
-              osConfig = config.os;
-              # TODO Is documentation for these options generated correctly?
-              osOptions =
-                let
-                  getSubOptions =
-                    _: option:
-                    # TODO Support listOf, functionTo, and standalone submodules
-                    if
-                      (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
-                      && option.type.nestedTypes.elemType.name == "submodule"
-                    then
-                      option
-                      // {
-                        __functor =
-                          self: name:
-                          lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-                            (let r = lib.evalModules {
-                              modules = [
-			        {
-				  _module.args.name = name;
-				}
-                                #{
-                                #  options = builtins.trace "TEST" (
-                                #    let
-                                #      options = self.type.getSubOptions [ ];
-                                #      optionsAfter = options // {
-                                #        # TODO Find a cleaner way to do this.
-                                #        _module = lib.recursiveUpdate (lib.removeAttrs options._module [
-                                #          "freeformType"
-                                #          "check"
-                                #        ]) { args.value.name = name; };
-                                #      };
-                                #    in
-                                #    builtins.trace (optionsAfter._module.args.value.name) optionsAfter);
-                                #}
-			      # TODO Don't use self, instead use the top level options to get the updated values.
-                              ] ++ (let m = self.type.nestedTypes.elemType.getSubModules; in builtins.trace m m);
-                              #++ (builtins.trace (builtins.attrNames self.value) [ self.loc ]);
-                            }; in builtins.trace "Eval" r).options;
-                      }
-                    else if option.type.name == "submodule" then
-                      option
-                      // {
-                        __functor =
-                          self: name:
-                          lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-			   # TODO
-                            (lib.evalModules { modules = self.getSubModules ++ [ self.loc ]; }).options;
-                      }
-                    else
-                      option;
-                in
-		# TODO Use getSubOptions [] instead of evalModules (does the same thing)
-                lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-                  (lib.evalModules {
-                    modules = [
-                      {
-                        options =
-                          let
-                            allOptions = options.os.type.getSubOptions [ ];
-                          in
-                          builtins.trace allOptions.environment.persistence.value (lib.filterAttrs (name: value: name != "_module") allOptions);
-                      }
+          config._module.args = {
+            combinedManagerPath = ./.;
+
+            pkgs =
+              (lib.evalModules {
+                modules = [
+                  "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                  {
+                    nixpkgs = builtins.removeAttrs config.os.nixpkgs [
+                      "pkgs"
+                      "flake"
                     ];
-                  }).options;
-            };
+                  }
+                ];
+              })._module.args.pkgs;
+
+            osConfig = config.os;
+
+            osOptions =
+              let
+                enhanceOption =
+                  _: option:
+                  # TODO Support listOf, functionTo, and standalone submodules
+                  if
+                    (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                    && option.type.nestedTypes.elemType.name == "submodule"
+                  then
+                    option
+                    // {
+                      __functor =
+                        self: name:
+                        lib.mapAttrsRecursiveCond (x: !lib.isOption x) enhanceOption
+                          (lib.evalModules { modules = [ { _module.args.name = name; } ] ++ self.type.getSubModules; })
+                          .options;
+                    }
+                  else
+                    option;
+              in
+              lib.mapAttrsRecursiveCond (x: !lib.isOption x) enhanceOption
+                (lib.evalModules {
+                  modules =
+                    allOsModules
+                    #lib.lists.filter (
+                    #  e:
+                    #  if builtins.typeOf e == "path" then
+                    #    #p = /. + builtins.toPath "${nixpkgs.outPath}/nixos/modules/system/activation/top-level.nix";
+                    #    #p = (builtins.trace (builtins.typeOf (/. + nixpkgs.outPath)) nixpkgs.outPath) + ./nixos/modules/system/activation/top-level.nix;
+                    #    (builtins.toString e) != "${nixpkgs.outPath}/nixos/modules/system/activation/top-level.nix"
+                    #  else
+                    #    true
+                    #) allOsModules
+                    ++ [
+                      (
+                        let
+                          osOptions = options.os.type.getSubOptions [ ];
+                          #          #x = [ (options.os.value // { nixpkgs = builtins.removeAttrs config.os.nixpkgs [ "pkgs" ]; }) ];
+                          #          filteredOptions = (builtins.removeAttrs osOptions [ "_module" ]) // {
+                          #            nixpkgs = builtins.removeAttrs osOptions.nixpkgs [ "pkgs" ];
+                          #          };
+                          #          x = lib.mapAttrsRecursiveCond (x: !lib.isOption x) (_: x: x.value) (
+                          #            lib.filterAttrsRecursive (name: value: true) filteredOptions
+                          #          );
+                          unfilteredConfig = (builtins.removeAttrs config.os [ "assertions" ]) // {
+                            nixpkgs = builtins.removeAttrs config.os.nixpkgs [ "pkgs" ];
+                          };
+                          filter =
+                            option: config:
+                            builtins.trace config (
+                              if lib.isOption option then
+                                # TODO Does this make problems? Null is not the same as not defined
+                                if lib.hasPrefix "Alias of" option.description then null else config
+                              else
+                                lib.foldlAttrs (
+                                  result: name: value:
+                                  let
+                                    filterResult = filter option.${name} value;
+                                  in
+                                  #	builtins.trace name
+                                  #(result // { ${name} = filterResult; })
+                                  (if filterResult == null then result else result // { ${name} = filterResult; })
+                                ) { } config
+                              # 			   lib.mapAttrs ()
+                            );
+                        in
+                        #lib.attrsets.filterAttrsRecursive (_: x: if lib.isOption x then !lib.hasPrefix "Alias of" x.description else true) unfilteredConfig
+                        #        #lib.filterAttrsRecursive (
+                        #        #  name: x: builtins.trace name (!lib.hasPrefix "Alias of" (x.description or ""))
+                        #             #        #) unfilteredConfig
+                        builtins.trace ("a") (filter osOptions unfilteredConfig)
+                        #config.os // { nixpkgs = builtins.removeAttrs config.os.nixpkgs [ "pkgs" ]; }
+                      )
+                    ];
+                }).options;
           };
         }
       )
@@ -188,33 +258,6 @@ lib.evalModules {
           _module.args = {
             hmConfig = osConfig.home-manager.users.${config.hmUsername};
             hmOptions = osOptions.home-manager.users config.hmUsername;
-
-            # TODO No duplication
-            #hmOptions =
-            #  let
-            #    getSubOptions =
-            #      _: option:
-            #      # TODO Support listOf, functionTo, and standalone submodules
-            #      if
-            #        (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
-            #        && option.type.nestedTypes.elemType.name == "submodule"
-            #      then
-            #        option
-            #        // {
-            #          __functor =
-            #            self: name:
-            #            # TODO Use specialArgs instead of _module.args.name?
-            #            lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-            #              (lib.evalModules {
-            #                modules = [ { _module.args.name = name; } ] ++ self.type.nestedTypes.elemType.getSubModules;
-            #              }).options;
-            #        }
-            #      else
-            #        option;
-            #  in
-            #  lib.mapAttrsRecursiveCond (x: !lib.isOption x) getSubOptions
-            #    (lib.evalModules { modules = osOptions.home-manager.users.type.getSubModules ++ [ hmConfig ]; })
-            #    .options;
           };
 
           os.home-manager = {

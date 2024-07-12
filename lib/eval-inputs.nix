@@ -1,17 +1,23 @@
-args:
+{
+  lockFile,
+  initialInputs ? { },
+  configurations,
+  ...
+}@args:
 let
-  lib = import ./lib args;
+  lib = import ./lib.nix lockFile;
+  modifiedLib = import ./modified-lib.nix lib;
 
-  initialInputsWithLocation = lib.optional (args ? initialInputs) {
+  initialInputsWithLocation = lib.optional (initialInputs != { }) {
     file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
-    value = args.initialInputs;
+    value = initialInputs;
   };
 
   directConfigModules = lib.foldlAttrs (
     modules: _: config:
     modules ++ config.modules
-  ) [ ] args.configurations;
-  configModules = lib.modules.collectModules null "" directConfigModules {
+  ) [ ] configurations;
+  configModules = modifiedLib.collectModules "combinedManager" "" directConfigModules {
     inherit lib;
     options = null;
     config = null;

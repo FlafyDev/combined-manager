@@ -1,13 +1,14 @@
 args: inputs:
 let
-  lib = import ./lib args;
+  inherit (inputs.nixpkgs) lib;
+  modifiedLib = import ./modified-lib.nix lib;
   combinedManagerToNixosConfig = import ./combined-manager-to-nixos-config.nix;
   evalModules = import ./eval-modules.nix;
 
   evalModule =
     configs: config:
     let
-      configModules = lib.modules.collectModules null "" config.modules {
+      configModules = modifiedLib.collectModules null "" config.modules {
         inherit lib inputs;
         options = null;
         config = null;
@@ -35,8 +36,7 @@ let
       module = evalModules (
         config
         // {
-          inherit lib;
-          inherit (args) system stateVersion;
+          inherit (args) system stateVersion; # TODO
           specialArgs = {
             inherit inputs useHm configs;
           };
