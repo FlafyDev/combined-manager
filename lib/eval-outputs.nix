@@ -33,20 +33,19 @@ let
 
       useHm = args.useHomeManager or true;
 
-      module = evalModules (
-        config
-        // {
-          inherit (args) system stateVersion; # TODO
-          specialArgs = {
-            inherit inputs useHm configs;
-          };
-          osModules =
-            config.osModules or [ ]
-            ++ configOsModules
-            ++ lib.optional useHm inputs.home-manager.nixosModules.default;
-          hmModules = config.hmModules or [ ] ++ configHmModules;
-        }
-      );
+      module = evalModules {
+        inherit (args) system stateVersion; # TODO
+        prefix = config.prefix or [ ];
+        specialArgs = {
+          inherit inputs useHm configs;
+        };
+        modules = config.modules;
+        osModules =
+          config.osModules or [ ]
+          ++ configOsModules
+          ++ lib.optional useHm inputs.home-manager.nixosModules.default;
+        hmModules = config.hmModules or [ ] ++ configHmModules;
+      };
 
       showWarnings =
         module:
