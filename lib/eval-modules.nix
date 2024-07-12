@@ -1,18 +1,21 @@
 {
-  system, # TODO Remove the first two
   stateVersion,
   prefix ? [ ],
   specialArgs ? { },
   modules,
   osModules ? [ ],
   hmModules ? [ ],
-}@args: # TODO Remove
+}:
 let
   inherit (specialArgs.inputs) nixpkgs;
   inherit (nixpkgs) lib;
   modifiedLib = import ./modified-lib.nix lib;
   inherit (specialArgs) useHm;
   inherit (lib) mkOption types;
+
+  osSpecialArgs = specialArgs // {
+    modulesPath = "${nixpkgs}/nixos/modules";
+  };
 
   osBaseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
   osExtraModules =
@@ -46,10 +49,7 @@ modifiedLib.evalModules {
             os = mkOption {
               type = types.submoduleWith {
                 class = "nixos";
-                specialArgs = {
-                  inherit useHm; # TODO Why is this provided to os, but not to combinedManager?
-                  modulesPath = "${nixpkgs}/nixos/modules";
-                } // specialArgs;
+                specialArgs = osSpecialArgs;
                 modules = allOsModules ++ [
                   (
                     { config, ... }:
@@ -57,7 +57,7 @@ modifiedLib.evalModules {
                       _module.args = {
                         baseModules = osBaseModules;
                         extraModules = osExtraModules;
-                        modules = finalOsModules;
+                        modules = osModules;
                       };
                       system.stateVersion = stateVersion;
                     }
@@ -113,6 +113,7 @@ modifiedLib.evalModules {
               in
               lib.mapAttrsRecursiveCond (x: !lib.isOption x) enhanceOption
                 (lib.evalModules {
+                  specialArgs = osSpecialArgs;
                   modules = allOsModules ++ [
                     (
                       let

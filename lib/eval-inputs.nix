@@ -6,14 +6,17 @@
 }@args:
 let
   lib = import ./lib.nix lockFile;
+in
+with lib;
+let
   modifiedLib = import ./modified-lib.nix lib;
 
-  initialInputsWithLocation = lib.optional (initialInputs != { }) {
+  initialInputsWithLocation = optional (initialInputs != { }) {
     file = (builtins.unsafeGetAttrPos "initialInputs" args).file;
     value = initialInputs;
   };
 
-  directConfigModules = lib.foldlAttrs (
+  directConfigModules = foldlAttrs (
     modules: _: config:
     modules ++ config.modules
   ) [ ] configurations;
@@ -22,7 +25,7 @@ let
     options = null;
     config = null;
   };
-  configInputs = lib.foldl (
+  configInputs = foldl (
     modules: module:
     let
       findInputs =
@@ -36,7 +39,7 @@ let
       inputs = findInputs module.config;
     in
     modules
-    ++ lib.optional (inputs != [ ]) {
+    ++ optional (inputs != [ ]) {
       file = module._file;
       value = inputs;
     }
@@ -45,31 +48,31 @@ let
   inputDefs = initialInputsWithLocation ++ configInputs;
   typeCheckedInputDefs =
     let
-      wrongTypeDefs = lib.filter (def: builtins.typeOf def.value != "set") inputDefs;
+      wrongTypeDefs = filter (def: builtins.typeOf def.value != "set") inputDefs;
     in
     if wrongTypeDefs == [ ] then
       inputDefs
     else
-      throw "A definition for option `inputs' is not of type `attribute set of raw value'. Definition values:${lib.options.showDefs wrongTypeDefs}";
+      throw "A definition for option `inputs' is not of type `attribute set of raw value'. Definition values:${options.showDefs wrongTypeDefs}";
 
-  uncheckedInputs = lib.foldl (inputs: def: inputs // def.value) { } typeCheckedInputDefs;
+  uncheckedInputs = foldl (inputs: def: inputs // def.value) { } typeCheckedInputDefs;
 in
-lib.foldlAttrs (
+foldlAttrs (
   inputs: inputName: _:
   let
-    defs = lib.foldl (
+    defs = foldl (
       defs: def:
       defs
-      ++ (lib.optional (def.value ? ${inputName}) {
+      ++ (optional (def.value ? ${inputName}) {
         file = def.file;
         value = def.value.${inputName};
       })
     ) [ ] typeCheckedInputDefs;
-    firstDef = lib.head defs;
-    areDefsEqual = lib.all (def: firstDef.value == def.value) defs;
+    firstDef = head defs;
+    areDefsEqual = all (def: firstDef.value == def.value) defs;
   in
   if areDefsEqual then
     inputs
   else
-    throw "The input `${inputName}' has conflicting definition values:${lib.options.showDefs defs}"
+    throw "The input `${inputName}' has conflicting definition values:${options.showDefs defs}"
 ) uncheckedInputs uncheckedInputs

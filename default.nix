@@ -3,7 +3,6 @@
     {
       description,
       lockFile,
-      system,
       stateVersion,
       initialInputs ? { },
       useHomeManager ? true,

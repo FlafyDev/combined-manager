@@ -1,8 +1,15 @@
-args: inputs:
+{
+  stateVersion,
+  useHomeManager ? true,
+  configurations,
+  outputs ? (_: { }),
+  ...
+}@args:
+inputs:
+with inputs.nixpkgs.lib;
 let
   inherit (inputs.nixpkgs) lib;
   modifiedLib = import ./modified-lib.nix lib;
-  combinedManagerToNixosConfig = import ./combined-manager-to-nixos-config.nix;
   evalModules = import ./eval-modules.nix;
 
   evalModule =
@@ -23,18 +30,17 @@ let
         else
           [ ];
 
-      # TODO Good error messages?
-      configOsModules = lib.foldl (
+      configOsModules = foldl (
         modules: module: modules ++ findImports "osImports" module.config
       ) [ ] configModules;
-      configHmModules = lib.foldl (
+      configHmModules = foldl (
         modules: module: modules ++ findImports "hmImports" module.config
       ) [ ] configModules;
 
-      useHm = args.useHomeManager or true;
+      useHm = config.useHm or useHomeManager;
 
       module = evalModules {
-        inherit (args) system stateVersion; # TODO
+        inherit stateVersion;
         prefix = config.prefix or [ ];
         specialArgs = {
           inherit inputs useHm configs;
@@ -43,22 +49,20 @@ let
         osModules =
           config.osModules or [ ]
           ++ configOsModules
-          ++ lib.optional useHm inputs.home-manager.nixosModules.default;
+          ++ optional useHm inputs.home-manager.nixosModules.default;
         hmModules = config.hmModules or [ ] ++ configHmModules;
       };
 
       showWarnings =
         module:
-        lib.foldl (
+        foldl (
           module: warning: builtins.trace "[1;31mwarning: ${warning}[0m" module
         ) module module.config.warnings;
 
       showErrors =
         module:
         let
-          failedAssertions = lib.lists.map (x: x.message) (
-            lib.filter (x: !x.assertion) module.config.assertions
-          ); # TODO Import lib gloally
+          failedAssertions = lists.map (x: x.message) (filter (x: !x.assertion) module.config.assertions);
         in
         if failedAssertions == [ ] then
           module
@@ -66,22 +70,32 @@ let
           throw ''
 
             Failed assertions:
-            ${lib.concatStringsSep "\n" (lib.map (x: "- ${x}") failedAssertions)}'';
+            ${concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}'';
     in
     showErrors (showWarnings module);
 
-  explicitOutputs = (args.outputs or (_: { })) (args // { self = outputs; });
+  explicitOutputs = outputs (args // { self = result; });
   nixosConfigurations =
     inputs:
-    lib.mapAttrs (_: combinedManagerToNixosConfig) (
-      let
-        configs = lib.mapAttrs (_: evalModule configs) args.configurations;
-      in
-      configs
-    );
+    mapAttrs
+      (
+        _: config:
+        config
+        // {
+          class = "nixos";
+          options = config.options.os;
+          config = config.config.os;
+        }
+      )
+      (
+        let
+          configs = mapAttrs (_: evalModule configs) configurations;
+        in
+        configs
+      );
 
-  outputs = explicitOutputs // {
+  result = explicitOutputs // {
     nixosConfigurations = nixosConfigurations inputs // explicitOutputs.nixosConfigurations or { };
   };
 in
-outputs
+result
