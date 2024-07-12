@@ -4,7 +4,7 @@
   configurations,
   outputs ? (_: { }),
   ...
-}@args:
+}:
 inputs:
 with inputs.nixpkgs.lib;
 let
@@ -22,30 +22,30 @@ let
       };
 
       findImports =
-        name: module:
-        if module ? ${name} then
-          module.${name}
-        else if module ? content then
-          findImports name module.content
-        else if module ? contents then
-          lib.foldl (imports: x: imports ++ findImports name x) [ ] module.contents
+        name: alias: x:
+        if x ? ${name} || x ? ${alias} then
+          x.${name} or [ ] ++ x.${alias} or [ ]
+        else if x ? content then
+          findImports name alias x.content
+        else if x ? contents then
+          lib.foldl (imports: x: imports ++ findImports name alias x) [ ] x.contents
         else
           [ ];
 
       configOsModules = foldl (
-        defs: module: defs ++ findImports "osImports" module.config
+        defs: module: defs ++ findImports "osImports" "osModules" module.config
       ) [ ] configModules;
       configHmModules = foldl (
-        defs: module: defs ++ findImports "hmImports" module.config
+        defs: module: defs ++ findImports "hmImports" "hmModules" module.config
       ) [ ] configModules;
 
-      useHm = config.useHm or useHomeManager;
+      useHm = config.useHomeManager or useHomeManager;
       module = evalModules {
         stateVersion = config.stateVersion or stateVersion;
         prefix = config.prefix or [ ];
         specialArgs = {
           inherit inputs useHm configs;
-        };
+        } // config.specialArgs or { };
         modules = config.modules;
         osModules =
           config.osModules or [ ]

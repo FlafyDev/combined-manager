@@ -29,13 +29,13 @@ let
     defs: module:
     let
       findDefs =
-        module:
-        if module ? inputs then
-          [ module.inputs ]
-        else if module ? content then
-          findDefs module.content
-        else if module ? contents then
-          lib.foldl (defs: x: defs ++ findDefs x) [ ] module.contents
+        x:
+        if x ? inputs then
+          [ x.inputs ]
+        else if x ? content then
+          findDefs x.content
+        else if x ? contents then
+          lib.foldl (defs: x: defs ++ findDefs x) [ ] x.contents
         else
           [ ];
       moduleDefs = findDefs module.config;

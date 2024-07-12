@@ -75,7 +75,7 @@ modifiedLib.evalModules {
           };
 
           config._module.args = {
-            combinedManagerPath = ./.;
+            combinedManager = import ../.;
 
             pkgs =
               (evalModules {
@@ -190,7 +190,7 @@ modifiedLib.evalModules {
         from = [ "hmModules" ];
         to = [ "hmImports" ];
         visible = false;
-        warn = true;
+        warn = false;
         use = x: x;
       })
     ]
