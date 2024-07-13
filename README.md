@@ -4,6 +4,7 @@ Combined Manager provides a new structure for personal NixOS configurations.
 
 - [Introduction](#introduction-no-separation)
 - [Module structure](#module-structure)
+- [Option copying](#option-copying)
 - [Current limitations](#current-limitations)
 - [Getting started](#getting-started)
 - [Stability](#stability)
@@ -62,6 +63,39 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
 }
 ```
 
+## Option copying
+When declaring options for your Combined Manager modules, sometimes you just want to copy a NixOS or Home Manager option. Combined Manager makes this easy and straightforward, even when working with `attrsOf` and submodules. Below is an example impermanence module that makes use of this feature. Note that the options being copied are complex, so you wouldn't want to just copy and paste them into your option declarations.
+```nix
+{
+  lib,
+  inputs,
+  osOptions,
+  hmOptions,
+  ...
+}:
+{
+  inputs.impermanence.url = "github:nix-community/impermanence";
+
+  osImports = [ inputs.impermanence.nixosModules.impermanence ];
+  hmImports = [ inputs.impermanence.nixosModules.home-manager.impermanence ];
+
+  options.impermanence =
+    let
+      os = osOptions.environment.persistence "/persist/system";
+      hm = hmOptions.home.persistence "/persist/home";
+    in
+    {
+      enable = lib.mkEnableOption "impermanence";
+      os = {
+        inherit (os) files directories; # Copy the `files` and `directories` options that you would define at `os.environment.persistence."/persist/system"`
+      };
+      hm = {
+        inherit (hm) files directories; # Copy the `files` and `directories` options that you would define at `hm.home.persistence."/persist/home"`
+      };
+    };
+}
+```
+
 ## Current limitations
 - Only a single user supported when using Home Manager
 - Requires Nix to be patched
@@ -92,7 +126,7 @@ To apply the Nix patch provided by this project, add the following to your NixOS
 ```nix
 nix.package = pkgs.nix.overrideAttrs (old: {
   patches = old.patches or [ ] ++ [
-    (pkgs.fetchUrl {
+    (pkgs.fetchurl {
       url = "https://raw.githubusercontent.com/Noah765/combined-manager/main/evaluable-flake.patch";
       hash = ""; # TODO
     })
@@ -104,4 +138,3 @@ Once you're using Combined Manager, you can get the patch using the `combinedMan
 nix.package = pkgs.nix.overrideAttrs (old: {
   patches = old.patches or [ ] ++ [ "${combinedManagerPath}/evaluable-flake.patch" ];
 });
-```

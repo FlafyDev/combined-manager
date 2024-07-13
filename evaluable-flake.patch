@@ -1,8 +1,8 @@
-diff --git a/src/libflake/flake/flake.cc b/src/libflake/flake/flake.cc
-index 627dfe830..d7fef3307 100644
---- a/src/libflake/flake/flake.cc
-+++ b/src/libflake/flake/flake.cc
-@@ -79,7 +79,7 @@ static std::tuple<StorePath, FlakeRef, FlakeRef> fetchOrSubstituteTree(
+diff --git a/src/libexpr/flake/flake.cc b/src/libexpr/flake/flake.cc
+index 90427e064..423a2f067 100644
+--- a/src/libexpr/flake/flake.cc
++++ b/src/libexpr/flake/flake.cc
+@@ -75,7 +75,7 @@ static std::tuple<fetchers::Tree, FlakeRef, FlakeRef> fetchOrSubstituteTree(
  
  static void forceTrivialValue(EvalState & state, Value & value, const PosIdx pos)
  {
@@ -11,12 +11,12 @@ index 627dfe830..d7fef3307 100644
          state.forceValue(value, pos);
  }
  
-@@ -216,7 +216,7 @@ static Flake readFlake(
+@@ -223,7 +223,7 @@ static Flake getFlake(
+         throw Error("source tree referenced by '%s' does not contain a '%s/flake.nix' file", lockedRef, lockedRef.subdir);
  
-     // NOTE evalFile forces vInfo to be an attrset because mustBeTrivial is true.
      Value vInfo;
--    state.evalFile(flakePath, vInfo, true);
-+    state.evalFile(flakePath, vInfo, false);
+-    state.evalFile(CanonPath(flakeFile), vInfo, true); // FIXME: symlink attack
++    state.evalFile(CanonPath(flakeFile), vInfo, false); // FIXME: symlink attack
  
-     Flake flake {
-         .originalRef = originalRef,
+     expectType(state, nAttrs, vInfo, state.positions.add({CanonPath(flakeFile)}, 1, 1));
+ 
