@@ -1,9 +1,9 @@
 # Combined Manager
 Combined Manager provides a new structure for personal NixOS configurations.
-###### Note: Requires patching `nix` to solve [this issue](https://github.com/NixOS/nix/issues/3966). See more in the [Nix Patches section](#nix-patches).
+###### Note: Requires patching `nix` to solve [this issue](https://github.com/NixOS/nix/issues/3966). See more in the [patching Nix section](#patching-nix).
 
 - [Introduction](#introduction-no-separation)
-- [Module structure](#module-options)
+- [Module structure](#module-structure)
 - [Current limitations](#current-limitations)
 - [Getting started](#getting-started)
 - [Stability](#stability)
@@ -31,11 +31,12 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
   options,
   osOptions,
   hmOptions,
-  configs, # The results of all NixOS/CombinedManager configurations
+  configs, # The results of all NixOS / Combined Manager configurations
   config,
   osConfig,
   hmConfig,
-  combinedManager, # The root of CombinedManager
+  combinedManager, # The root of Combined Manager
+  combinedManagerPath, # Path to the root of Combined Manager
   ...
 }: {
   inputs = { name.url = "..."; }; # Add inputs
@@ -67,8 +68,8 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
 - For NixOS configurations with flakes only
 
 ## Getting started
-1. Patch Nix with the patches in the `nix-patches` directory. See more in the [patching nix section](#nix-patches).
-2. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example`.
+1. Patch Nix with the `evaluable-flake.patch` patch. See more in the [patching nix section](#patching-nix).
+2. Use one of our flake templates with `nix flake init -t github:FlafyDev/combined-manager#example`, or have a look at an example to see how to use Combined Manager.
 3. Start using Combined Manager!
 
 ## Stability
@@ -84,31 +85,23 @@ There may be breaking changes.
 
 ## Patching Nix
 Because Combined Manager allows flake inputs to be distributed across multiple modules, which [Nix doesn't support](https://github.com/NixOS/nix/issues/3966), it requires Nix to be patched.
-You can use the patches provided by this project, or alternatively use [Nix Super](https://github.com/privatevoid-net/nix-super).
+You can use the patch provided by this project, or alternatively use [Nix Super](https://github.com/privatevoid-net/nix-super).
 
-#### Applying patches to Nix
-You can add the following to your NixOS config:
-
+#### Applying the patch to Nix
+To apply the Nix patch provided by this project, add the following to your NixOS configuration:
 ```nix
-nix = {
-  package = let
-    combinedManager = pkgs.fetchFromGitHub {
-      owner = "flafydev";
-      repo = "combined-manager";
-      rev = "9474a2432b47c0e6fa0435eb612a32e28cbd99ea";
-      sha256 = "";
-    };
-  in
-    pkgs.nix.overrideAttrs (old: {
-      patches =
-        old.patches or []
-        ++ (
-          map
-          (file: "${combinedManager}/nix-patches/${file}")
-          (lib.attrNames (lib.filterAttrs (_: type: type == "regular") (builtins.readDir "${combinedManager}/nix-patches")))
-        );
-    });
-};
+nix.package = pkgs.nix.overrideAttrs (old: {
+  patches = old.patches or [ ] ++ [
+    (pkgs.fetchUrl {
+      url = "https://raw.githubusercontent.com/Noah765/combined-manager/main/evaluable-flake.patch";
+      hash = ""; # TODO
+    })
+  ];
+});
 ```
-
-Once you start using Combined Manager, you'll be able to source the patches directly from your `combinedManager` module arg.
+Once you're using Combined Manager, you can get the patch using the `combinedManagerPath` module arg:
+```nix
+nix.package = pkgs.nix.overrideAttrs (old: {
+  patches = old.patches or [ ] ++ [ "${combinedManagerPath}/evaluable-flake.patch" ];
+});
+```

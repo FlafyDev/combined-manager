@@ -75,6 +75,7 @@ modifiedLib.evalModules {
                 })._module.args.pkgs;
 
               combinedManager = import ../.;
+              combinedManagerPath = ./.;
 
               osOptions =
                 let
