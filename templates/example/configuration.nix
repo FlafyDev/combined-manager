@@ -1,9 +1,8 @@
 {
   lib,
+  inputs,
   pkgs,
   osConfig,
-  hmConfig,
-  inputs,
   ...
 }:
 {
@@ -13,10 +12,10 @@
   };
 
   # Adding top level system modules
-  osModules = [ ./hardware-configuration.nix ];
+  osImports = [ ./hardware-configuration.nix ];
 
   # Adding home modules
-  hmModules = [ ];
+  hmImports = [ ];
 
   # Setting overlays
   os.nixpkgs.overlays = [ (_final: prev: { customCat = prev.bat; }) ];
@@ -45,7 +44,4 @@
 
   # Using `hm` to set Home Manager options.
   hm.xdg.configFile."somebody.txt".text = "once told me";
-
-  hm.home.stateVersion = "23.05";
-  os.system.stateVersion = "23.05";
 }

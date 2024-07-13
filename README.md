@@ -127,8 +127,8 @@ To apply the Nix patch provided by this project, add the following to your NixOS
 nix.package = pkgs.nix.overrideAttrs (old: {
   patches = old.patches or [ ] ++ [
     (pkgs.fetchurl {
-      url = "https://raw.githubusercontent.com/Noah765/combined-manager/main/evaluable-flake.patch";
-      hash = ""; # TODO
+      url = "https://raw.githubusercontent.com/flafydev/combined-manager/main/evaluable-flake.patch";
+      hash = "sha256-UZ5hXI1w1mOEe0Bp5rSfeB4jfnwxnNEXJWir4dQGyyo=";
     })
   ];
 });

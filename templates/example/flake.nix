@@ -1,8 +1,8 @@
 let
   combinedManager = import (
     builtins.fetchTarball {
-      url = "https://github.com/flafydev/combined-manager/archive/71d2bc7553b59f69315328ba31531ffdc8c3ded2.tar.gz";
-      sha256 = "sha256:0dkjcy3xknncl4jv0abqhqspnk91hf6ridb5xb7da5f29xn60mnf";
+      url = "https://github.com/flafydev/combined-manager/archive/225a5d918f8c600adc374e634aab02aed9e406ab.tar.gz";
+      sha256 = "sha256:052q2q30nrxjci0s5ck81r563yz1zcd5abb7gb3qg1yamwpxxgra";
     }
   );
 in
@@ -10,6 +10,8 @@ combinedManager.mkFlake {
   description = "NixOS configuration";
 
   lockFile = ./flake.lock;
+
+  stateVersion = "24.11";
 
   initialInputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -20,10 +22,7 @@ combinedManager.mkFlake {
   };
 
   configurations = {
-    default = {
-      system = "x86_64-linux";
-      modules = [ ./configuration.nix ];
-    };
+    default.modules = [ ./configuration.nix ];
   };
 
   # Optional
