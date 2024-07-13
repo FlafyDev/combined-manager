@@ -2,29 +2,24 @@
 Combined Manager provides a new structure for personal NixOS configurations.
 ###### Note: Requires patching `nix` to solve [this issue](https://github.com/NixOS/nix/issues/3966). See more in the [Nix Patches section](#nix-patches).
 
-- [Introduction](#introduction-no-separation)  
-- [Module options](#module-options)  
-- [Examples](#examples)  
-    - [Full configurations](#full-configurations)  
-    - [Modules](#modules)  
-- [Current limitations](#examples)  
-- [Stability](#stability)  
-- [Setup](#setup)  
-- [Nix Patches](#nix-patches)
-  - [evaluable-flake.patch](#required-evaluable-flakepatch-2-line-diff)
-- [FAQ](#faq)
-  - [I want to get started, but don’t know how to patch Nix.](#i-want-to-get-started-but-dont-know-how-to-patch-nix)
-  - [Why does Combined Manager need to evaluate inputs?](#why-does-combined-manager-need-to-evaluate-inputs)
+- [Introduction](#introduction-no-separation)
+- [Module structure](#module-options)
+- [Current limitations](#current-limitations)
+- [Getting started](#getting-started)
+- [Stability](#stability)
+- [Examples](#examples)
+    - [Full configurations](#full-configurations)
+    - [Modules](#modules)
+- [Patching Nix](#patching-nix)
 
 ## Introduction: No separation
-Combined Manager's main feature is to break separation. If you want, you should be able to keep everything in a single module.  
-Most NixOS configuration structures are designed to separate related things into multiple files.  
+The main feature of Combined Manager is to break separation. Most NixOS configuration structures are designed to separate related things into multiple files.
 
-Most prominent separations:  
-- Dividing modules into system and home categories. These categories are then further maintained in separate files.
-- All flake inputs must be in the same file in flake.nix.
+Most prominent separations:
+- Splitting your configuration into NixOS and Home Manager modules. These modules are then put into different files, even though they may be semantically related.
+- All flake inputs must be in flake.nix.
 
-Combined Manager breaks this pattern by allowing modules to add inputs, overlays and Home Manager and NixOS options as if they are simple options.
+Combined Manager breaks this pattern by providing modules that can add inputs, import NixOS and Home Manager modules, and define Home Manager and NixOS options.
 
 ## Module structure
 ```nix
@@ -43,13 +38,13 @@ Combined Manager breaks this pattern by allowing modules to add inputs, overlays
   combinedManager, # The root of CombinedManager
   ...
 }: {
-  inputs = { name.url = "..."; }; # Adding inputs
+  inputs = { name.url = "..."; }; # Add inputs
 
   imports = [ ];
-  osImports = [ ]; # Importing NixOS modules
-  hmImports = [ ]; # Importing Home Manager modules
+  osImports = [ ]; # Import NixOS modules
+  hmImports = [ ]; # Import Home Manager modules
 
-  options = { };
+  options = { }; # Declare Combined Manager options
 
   config = {
     inputs = { name.url = "..."; }; # You can also add inputs here
@@ -57,16 +52,29 @@ Combined Manager breaks this pattern by allowing modules to add inputs, overlays
     osModules = [ ]; # You can also import NixOS modules here
     hmModules = [ ]; # You can also import Home Manager modules here
 
-    os.nixpkgs.overlays = [ ]; # Setting overlays
+    os = { }; # Define NixOS options
 
-    os = { }; # Using `os` to set NixOS options
+    hmUsername = "myname"; # Set the Home Manager username (must be defined if Home Manager is enabled for this configuration)
 
-    hmUsername = "myname"; # Set the Home Manager username (required if home manager is enabled for that configuration)
-
-    hm = { }; # Using `hm` to set Home Manager options.
+    hm = { }; # Define Home Manager options
   };
 }
 ```
+
+## Current limitations
+- Only a single user supported when using Home Manager
+- Requires Nix to be patched
+- For NixOS configurations with flakes only
+
+## Getting started
+1. Patch Nix with the patches in the `nix-patches` directory. See more in the [patching nix section](#nix-patches).
+2. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example`.
+3. Start using Combined Manager!
+
+## Stability
+At the time of writing, stable _enough_.
+While I'm using it for my configuraiton, I haven't tested everything and can't guarantee stability.
+There may be breaking changes.
 
 ## Examples
 #### Full configurations
@@ -74,45 +82,15 @@ Combined Manager breaks this pattern by allowing modules to add inputs, overlays
 #### Modules
 - https://github.com/FlafyDev/nixos-config/blob/main/modules/display/hyprland/default.nix
 
+## Patching Nix
+Because Combined Manager allows flake inputs to be distributed across multiple modules, which [Nix doesn't support](https://github.com/NixOS/nix/issues/3966), it requires Nix to be patched.
+You can use the patches provided by this project, or alternatively use [Nix Super](https://github.com/privatevoid-net/nix-super).
 
-## Current limitations
-- Only a single user with Home Manager.
-- Nix must be patched. 
-- Only for NixOS.
-
-## Stability
-As of the time of writing, stable _enough_.  
-While I'll use it for my configuraiton, I have not tested everything and cannot guarantee stability.  
-There might be breaking changes.
-
-## Setup
-1. Patch Nix with the patches in the `nix-patches` directory. See more in the [Nix Patches section](#nix-patches).
-2. Generate a template with `nix flake init -t github:FlafyDev/combined-manager#example`.
-3. Run `nix flake metadata`. You might need to run it twice if there is no `flake.lock` file(A message will appear).
-
-##### Running
-To bulid a VM: `nixos-rebuild build-vm --flake .#default`.  
-To swtich: `sudo nixos-rebuild switch --flake .#default`.  
-
-
-## Nix Patches 
-Combined Manager requires applying certain patches to Nix in order to work.  
-Alternatively, you can use [Nix Super](https://git.privatevoid.net/max/nix-super).  
-
-#### Required: evaluable-flake.patch (2 line diff)
-This patch enables inputs(and the entire flake) to be evaluable. Solves [issue #3966](https://github.com/NixOS/nix/issues/3966).  
-Combined Manager requires this since it evaluates `inputs` from all the modules.  
-
-See [line 9 of the example flake](https://github.com/FlafyDev/combined-manager/blob/9474a2432b47c0e6fa0435eb612a32e28cbd99ea/templates/example/flake.nix#L9).  
-
-## FAQ
-
-#### I want to get started, but don't know how to patch Nix.
-You can add the following to your config:
+#### Applying patches to Nix
+You can add the following to your NixOS config:
 
 ```nix
 nix = {
-  enable = true;
   package = let
     combinedManager = pkgs.fetchFromGitHub {
       owner = "flafydev";
@@ -123,7 +101,7 @@ nix = {
   in
     pkgs.nix.overrideAttrs (old: {
       patches =
-        (old.patches or [])
+        old.patches or []
         ++ (
           map
           (file: "${combinedManager}/nix-patches/${file}")
@@ -134,7 +112,3 @@ nix = {
 ```
 
 Once you start using Combined Manager, you'll be able to source the patches directly from your `combinedManager` module arg.
-
-#### Why does Combined Manager need to evaluate inputs?
-Each Combined Manager module has an `inputs` option. That option will eventually be merged and set as the inputs of the NixOS configuration.
-
