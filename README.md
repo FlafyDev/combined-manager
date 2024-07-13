@@ -24,46 +24,46 @@ Most prominent separations:
 - Dividing modules into system and home categories. These categories are then further maintained in separate files.
 - All flake inputs must be in the same file in flake.nix.
 
-Combined Manager breaks this pattern by allowing modules to add inputs, overlays and Home Manager and Nixpkgs options as if they are simple options.
+Combined Manager breaks this pattern by allowing modules to add inputs, overlays and Home Manager and NixOS options as if they are simple options.
 
-## Module Options
+## Module structure
 ```nix
 {
   lib,
+  inputs,
   pkgs,
+  useHm, # Whether the current configuration uses Home Manager
+  options,
+  osOptions,
+  hmOptions,
+  configs, # The results of all NixOS/CombinedManager configurations
   config,
   osConfig,
   hmConfig,
-  inputs,
-  combinedManagerPath, # Path to the root of combinedManager
-  configs, # The results of all NixOS/CombinedManager configurations
+  combinedManager, # The root of CombinedManager
   ...
 }: {
+  inputs = { name.url = "..."; }; # Adding inputs
+
   imports = [ ];
+  osImports = [ ]; # Importing NixOS modules
+  hmImports = [ ]; # Importing Home Manager modules
 
   options = { };
 
   config = {
-    # Adding inputs.
-    inputs = { name.url = "..."; };
+    inputs = { name.url = "..."; }; # You can also add inputs here
 
-    # Importing system modules.
-    osModules = [ ];
+    osModules = [ ]; # You can also import NixOS modules here
+    hmModules = [ ]; # You can also import Home Manager modules here
 
-    # Importing Home Manager modules.
-    hmModules = [ ];
+    os.nixpkgs.overlays = [ ]; # Setting overlays
 
-    # Setting overlays.
-    os.nixpkgs.overlays = [ ];
+    os = { }; # Using `os` to set NixOS options
 
-    # Using `os` to set Nixpkgs options.
-    os = { };
+    hmUsername = "myname"; # Set the Home Manager username (required if home manager is enabled for that configuration)
 
-    # Set Home Manager username (Required to be set in at least one of the modules).
-    hmUsername = "myname";
-
-    # Using `hm` to set Home Manager options.
-    hm = { };
+    hm = { }; # Using `hm` to set Home Manager options.
   };
 }
 ```
@@ -76,7 +76,7 @@ Combined Manager breaks this pattern by allowing modules to add inputs, overlays
 
 
 ## Current limitations
-- Home Manager required and only a single user with Home Manager.
+- Only a single user with Home Manager.
 - Nix must be patched. 
 - Only for NixOS.
 

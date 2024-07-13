@@ -77,7 +77,6 @@ let
 
   explicitOutputs = outputs inputs;
   nixosConfigurations =
-    inputs:
     mapAttrs
       (
         _: config:
@@ -96,7 +95,7 @@ let
       );
 
   result = explicitOutputs // {
-    nixosConfigurations = nixosConfigurations inputs // explicitOutputs.nixosConfigurations or { };
+    nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or { };
   };
 in
 result

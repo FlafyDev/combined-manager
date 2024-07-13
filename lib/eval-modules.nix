@@ -51,22 +51,7 @@ modifiedLib.evalModules {
               type = types.submoduleWith {
                 class = "nixos";
                 specialArgs = osSpecialArgs;
-                modules = allOsModules ++ [
-                  (
-                    { config, ... }:
-                    {
-                      _module.args = {
-                        baseModules = osBaseModules;
-                        extraModules = osExtraModules;
-                        modules = osModules;
-                      };
-                      system.stateVersion = stateVersion;
-                    }
-                    // optionalAttrs useHm {
-                      home-manager.sharedModules = hmModules ++ [ { home.stateVersion = stateVersion; } ];
-                    }
-                  )
-                ];
+                modules = allOsModules;
               };
               default = { };
               visible = "shallow";
@@ -74,62 +59,74 @@ modifiedLib.evalModules {
             };
           };
 
-          config._module.args = {
-            combinedManager = import ../.;
-
-            pkgs =
-              (evalModules {
-                modules = [
-                  "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-                  {
-                    nixpkgs = builtins.removeAttrs config.os.nixpkgs [
-                      "pkgs"
-                      "flake"
-                    ];
-                  }
-                ];
-              })._module.args.pkgs;
-
-            osConfig = config.os;
-
-            osOptions =
-              let
-                enhanceOption =
-                  _: option:
-                  # TODO Support listOf, functionTo, and standalone submodules
-                  if
-                    (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
-                    && option.type.nestedTypes.elemType.name == "submodule"
-                  then
-                    option
-                    // {
-                      __functor =
-                        self: name:
-                        mapAttrsRecursiveCond (x: !isOption x) enhanceOption
-                          (evalModules { modules = [ { _module.args.name = name; } ] ++ self.type.getSubModules; }).options;
-                    }
-                  else
-                    option;
-              in
-              mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+          config = {
+            _module.args = {
+              pkgs =
                 (evalModules {
-                  specialArgs = osSpecialArgs;
-                  modules = allOsModules ++ [
-                    (
-                      let
-                        osOptions = options.os.type.getSubOptions [ ];
-                        filteredOsOptions = (removeAttrs osOptions [ "_module" ]) // {
-                          nixpkgs = removeAttrs osOptions.nixpkgs [ "pkgs" ];
-                        };
-                        # TODO Try relying on option.isDefined instead of the description
-                        filteredOptions = filterAttrsRecursive (
-                          name: x: !isOption x || !hasPrefix "Alias of" x.description or ""
-                        ) filteredOsOptions;
-                      in
-                      mapAttrsRecursiveCond (x: !isOption x) (path: _: getAttrFromPath path config.os) filteredOptions
-                    )
+                  modules = [
+                    "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                    {
+                      nixpkgs = builtins.removeAttrs config.os.nixpkgs [
+                        "pkgs"
+                        "flake"
+                      ];
+                    }
                   ];
-                }).options;
+                })._module.args.pkgs;
+
+              combinedManager = import ../.;
+
+              osOptions =
+                let
+                  enhanceOption =
+                    _: option:
+                    # TODO Support listOf, functionTo, and standalone submodules
+                    if
+                      (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                      && option.type.nestedTypes.elemType.name == "submodule"
+                    then
+                      option
+                      // {
+                        __functor =
+                          self: name:
+                          mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                            (evalModules { modules = [ { _module.args.name = name; } ] ++ self.type.getSubModules; }).options;
+                      }
+                    else
+                      option;
+                in
+                mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                  (evalModules {
+                    specialArgs = osSpecialArgs;
+                    modules = allOsModules ++ [
+                      (
+                        let
+                          osOptions = options.os.type.getSubOptions [ ];
+                          filteredOsOptions = (removeAttrs osOptions [ "_module" ]) // {
+                            nixpkgs = removeAttrs osOptions.nixpkgs [ "pkgs" ];
+                          };
+                          # TODO Try relying on option.isDefined instead of the description
+                          filteredOptions = filterAttrsRecursive (
+                            _: x: !isOption x || !hasPrefix "Alias of" x.description or ""
+                          ) filteredOsOptions;
+                        in
+                        mapAttrsRecursiveCond (x: !isOption x) (path: _: getAttrFromPath path config.os) filteredOptions
+                      )
+                    ];
+                  }).options;
+
+              osConfig = config.os;
+            };
+
+            os = {
+              _module.args = {
+                baseModules = osBaseModules;
+                extraModules = osExtraModules;
+                modules = osModules;
+              };
+
+              system.stateVersion = stateVersion;
+            };
           };
         }
       )
@@ -145,7 +142,6 @@ modifiedLib.evalModules {
     ++ optionals useHm [
       (
         {
-          inputs,
           osOptions,
           config,
           osConfig,
@@ -173,14 +169,15 @@ modifiedLib.evalModules {
 
           config = {
             _module.args = {
-              hmConfig = osConfig.home-manager.users.${config.hmUsername};
               hmOptions = osOptions.home-manager.users config.hmUsername;
+              hmConfig = osConfig.home-manager.users.${config.hmUsername};
             };
 
             os.home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
               extraSpecialArgs = specialArgs;
+              sharedModules = hmModules ++ [ { home.stateVersion = stateVersion; } ];
               users.${config.hmUsername} = config.hm;
             };
           };
