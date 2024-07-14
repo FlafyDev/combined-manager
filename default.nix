@@ -38,37 +38,35 @@ let
   mkFlake = {
     lockFile,
     description,
-    initialInputs,
+    initialInputs ? {},
     configurations,
     outputs ? (_: {}),
   }: let
     lib = getLib {inherit lockFile;};
-  in
-    assert builtins.elem "nixpkgs" (builtins.attrNames initialInputs) || throw "nixpkgs input not found in initialInputs" {};
-    assert ((builtins.any (config: config.useHomeManager or true) (builtins.attrValues configurations)) && (builtins.elem "home-manager" (builtins.attrNames initialInputs))) || throw "home-manager input not found in initialInputs" {}; {
-      inherit description;
-      inputs = import ./eval-inputs.nix {inherit lib initialInputs configurations;};
-      outputs = inputs:
-        (outputs inputs)
-        // {
-          nixosConfigurations = let
-            allConfigurations = builtins.mapAttrs (_host: config: config.config) (
-              (lib.mapAttrs (_name: config:
-                combinedManagerSystem {
-                  configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
-                  inherit inputs;
-                })
-              configurations)
-              // (outputs inputs).nixosConfigurations or {}
-            );
-          in
+  in {
+    inherit description;
+    inputs = import ./eval-inputs.nix {inherit lib initialInputs configurations;};
+    outputs = inputs:
+      (outputs inputs)
+      // {
+        nixosConfigurations = let
+          allConfigurations = builtins.mapAttrs (_host: config: config.config) (
             (lib.mapAttrs (_name: config:
-              nixosSystem {
+              combinedManagerSystem {
                 configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
                 inherit inputs;
               })
             configurations)
-            // (outputs inputs).nixosConfigurations or {};
-        };
-    };
+            // (outputs inputs).nixosConfigurations or {}
+          );
+        in
+          (lib.mapAttrs (_name: config:
+            nixosSystem {
+              configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
+              inherit inputs;
+            })
+          configurations)
+          // (outputs inputs).nixosConfigurations or {};
+      };
+  };
 in {inherit mkFlake nixosSystem;}
