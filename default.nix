@@ -3,12 +3,12 @@
     description,
     lockFile,
     initialInputs ? {},
-    system ? null,
+    defaultSystem ? null,
     useHomeManager ? true,
-    specialArgs ? {},
-    modules ? [],
-    osModules ? [],
-    hmModules ? [],
+    globalSpecialArgs ? {},
+    globalModules ? [],
+    globalOsModules ? [],
+    globalHmModules ? [],
     configurations,
     outputs ? (_: {}),
   } @ args: {
@@ -19,6 +19,7 @@
 
   nixosSystem = {
     inputs,
+    inputOverrides ? (_: {}),
     system,
     useHomeManager ? true,
     prefix ? [],
