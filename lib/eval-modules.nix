@@ -46,35 +46,41 @@ in
           os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
         })
 
-        {
+        ({config, ...}: {
           options = {
             inputs = mkOption {
               type = with types; attrs;
               default = {};
               description = "Inputs";
             };
-          };
-        }
 
-        # Combined Manager module
-        ({
-          config,
-          osConfig,
-          ...
-        }: {
-          options.combinedManager = {
-            osPassedArgs = lib.mkOption {
-              type = lib.types.attrs;
-              default = {
-                osOptions = "options";
-                pkgs = "pkgs";
-              };
-              visible = "hidden";
+            osImports = mkOption {
+              type = with types; listOf raw;
+              default = [];
+              description = "NixOS modules.";
             };
-            osExtraPassedArgs = lib.mkOption {
-              type = lib.types.attrs;
+
+            os = lib.mkOption {
+              type = osModule;
               default = {};
-              visible = "hidden";
+              visible = "shallow";
+              description = "NixOS configuration.";
+            };
+
+            combinedManager = {
+              osPassedArgs = lib.mkOption {
+                type = types.attrs;
+                default = {
+                  osOptions = "options";
+                  pkgs = "pkgs";
+                };
+                visible = "hidden";
+              };
+              osExtraPassedArgs = lib.mkOption {
+                type = types.attrs;
+                default = {};
+                visible = "hidden";
+              };
             };
           };
 
@@ -84,6 +90,7 @@ in
               // {
                 osConfig = config.os;
               };
+
             os = let
               cmConfig = config;
             in
@@ -106,26 +113,6 @@ in
               };
           };
         })
-
-        (_: {
-          options = {
-            os = lib.mkOption {
-              type = osModule;
-              default = {};
-              visible = "shallow";
-              description = ''
-                Nixpkgs configuration.
-              '';
-            };
-
-            osImports = mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "Top level system modules.";
-            };
-          };
-        })
-
         (lib.doRename {
           from = ["osModules"];
           to = ["osImports"];
@@ -134,60 +121,54 @@ in
           use = x: x;
         })
       ]
-      ++ (
-        lib.optionals useHomeManager
-        [
-          ({
-            options,
-            config,
-            osConfig,
-            lib,
-            ...
-          }: {
-            options = {
-              hm = lib.mkOption {
-                type = lib.types.deferredModule;
-                default = {};
-                description = ''
-                  Home Manager configuration.
-                '';
-              };
-
-              hmUsername = lib.mkOption {
-                type = lib.types.str;
-                default = "user";
-                description = ''
-                  Username used for hm.
-                '';
-              };
-
-              hmImports = lib.mkOption {
-                type = with types; listOf raw;
-                default = [];
-                description = "Home Manager modules.";
-              };
+      ++ lib.optionals useHomeManager
+      [
+        ({
+          options,
+          config,
+          osConfig,
+          lib,
+          ...
+        }: {
+          options = {
+            hmUsername = lib.mkOption {
+              type = types.str;
+              default = "user";
+              description = "Username used for Home Manager.";
             };
 
-            config = {
-              _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-              os.home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                users.${config.hmUsername} = config.hm;
-                sharedModules = hmModules;
-                extraSpecialArgs = {inherit inputs;};
-              };
+            hmImports = lib.mkOption {
+              type = with types; listOf raw;
+              default = [];
+              description = "Home Manager modules.";
             };
-          })
 
-          (lib.doRename {
-            from = ["hmModules"];
-            to = ["hmImports"];
-            visible = true;
-            warn = false;
-            use = x: x;
-          })
-        ]
-      )
+            hm = lib.mkOption {
+              type = types.deferredModule;
+              default = {};
+              description = "Home Manager configuration.";
+            };
+          };
+
+          config = {
+            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
+
+            os.home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              users.${config.hmUsername} = config.hm;
+              sharedModules = hmModules;
+              extraSpecialArgs = {inherit inputs;};
+            };
+          };
+        })
+        (lib.doRename {
+          from = ["hmModules"];
+          to = ["hmImports"];
+          visible = true;
+          warn = false;
+          use = x: x;
+        })
+      ]
       ++ modules;
   }

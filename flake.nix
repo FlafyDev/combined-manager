@@ -2,7 +2,7 @@
   description = "Combined Manager";
 
   outputs = _: {
-    inherit (import ./.) nixosSystem evaluateInputs;
+    inherit (import ./.) mkFlake nixosSystem;
 
     templates = rec {
       bare = {
