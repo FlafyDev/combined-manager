@@ -21,15 +21,36 @@ let
   # else builtins.trace "[1;31mInputs need to be evaluated again.[0m" null;
 
   combinedManagerSystem = {
+    lib,
+    modifiedLib,
     inputs,
     configuration,
   }: let
     configuration' = (builtins.removeAttrs configuration ["inputOverrides"]) // {inputs = inputs // ((configuration.inputOverrides or (_: {})) inputs);};
-    inherit ((evalModules configuration').config) osModules;
+
+    configModules = modifiedLib.collectModules null "" configuration.modules {
+      inherit lib;
+      inherit (configuration') inputs;
+      options = null;
+      config = null;
+    };
+
+    findImports = name: alias: x:
+      if x ? ${name} || x ? ${alias}
+      then x.${name} or [] ++ x.${alias} or []
+      else if x ? content
+      then findImports name alias x.content
+      else if x ? contents
+      then lib.foldl (imports: x: imports ++ findImports name alias x) [] x.contents
+      else [];
+
+    configOsModules = lib.foldl (defs: module: defs ++ findImports "osImports" "osModules" module.config) [] configModules;
+    configHmModules = lib.foldl (defs: module: defs ++ findImports "hmImports" "hmModules" module.config) [] configModules;
 
     evaluated = evalModules (configuration'
       // {
-        inherit osModules;
+        osModules = configOsModules ++ lib.optional configuration.useHomeManager or true inputs.home-manager.nixosModules.default;
+        hmModules = configHmModules;
       });
   in {inherit (evaluated) config;};
 
@@ -43,6 +64,7 @@ let
     outputs ? (_: {}),
   }: let
     lib = getLib {inherit lockFile;};
+    modifiedLib = import ./modified-lib.nix lib;
   in {
     inherit description;
     inputs = import ./eval-inputs.nix {inherit lib initialInputs configurations;};
@@ -53,6 +75,7 @@ let
           allConfigurations = builtins.mapAttrs (_host: config: config.config) (
             (lib.mapAttrs (_name: config:
               combinedManagerSystem {
+                inherit lib modifiedLib;
                 configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
                 inherit inputs;
               })
@@ -62,6 +85,7 @@ let
         in
           (lib.mapAttrs (_name: config:
             nixosSystem {
+              inherit lib modifiedLib;
               configuration = config // {specialArgs = (config.specialArgs or {}) // {configs = allConfigurations;};};
               inherit inputs;
             })

@@ -5,6 +5,7 @@
   useHomeManager ? true,
   specialArgs ? {},
   osModules ? [],
+  hmModules ? [],
   prefix ? [],
 }: let
   inherit (inputs.nixpkgs) lib;
@@ -169,12 +170,11 @@ in
 
             config = {
               _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-              osModules = [inputs.home-manager.nixosModules.home-manager];
               os.home-manager = {
                 useGlobalPkgs = true;
                 useUserPackages = true;
                 users.${config.hmUsername} = config.hm;
-                sharedModules = config.hmModules;
+                sharedModules = hmModules;
                 extraSpecialArgs = {inherit inputs;};
               };
             };
