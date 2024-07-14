@@ -480,6 +480,8 @@ with lib; let
         "disabledModules"
         "inputs"
         "imports"
+        "osImports"
+        "hmImports"
         "options"
         "config"
         "meta"
@@ -492,9 +494,16 @@ with lib; let
       else if duplicateInputs != {}
       then throw "Module `${key}' defines the input `${head (attrNames duplicateInputs)}' twice, once in the top-level `inputs' attribute and once in the `config.inputs' attribute. Rename or remove one of these definitions."
       else let
-        additionalConfig = optionalAttrs (m ? inputs || (m.config or {}) ? inputs) {
-          inputs = (m.inputs or {}) // (m.config.inputs or {});
-        };
+        additionalConfig =
+          optionalAttrs (m ? inputs || (m.config or {}) ? inputs) {
+            inputs = (m.inputs or {}) // (m.config.inputs or {});
+          }
+          // optionalAttrs (m ? osImports) {
+            osImports = (m.osImports or []) ++ (m.config.osImports or []);
+          }
+          // optionalAttrs (m ? hmImports) {
+            hmImports = (m.hmImports or []) ++ (m.config.hmImports or []);
+          };
       in {
         _file = toString m._file or file;
         _class = m._class or null;

@@ -117,59 +117,77 @@ in
               '';
             };
 
-            osModules = mkOption {
+            osImports = mkOption {
               type = with types; listOf raw;
               default = [];
               description = "Top level system modules.";
             };
           };
         })
+
+        (lib.doRename {
+          from = ["osModules"];
+          to = ["osImports"];
+          visible = true;
+          warn = false;
+          use = x: x;
+        })
       ]
       ++ (
-        lib.optional useHomeManager
-        ({
-          options,
-          config,
-          osConfig,
-          lib,
-          ...
-        }: {
-          options = {
-            hm = lib.mkOption {
-              type = lib.types.deferredModule;
-              default = {};
-              description = ''
-                Home Manager configuration.
-              '';
+        lib.optionals useHomeManager
+        [
+          ({
+            options,
+            config,
+            osConfig,
+            lib,
+            ...
+          }: {
+            options = {
+              hm = lib.mkOption {
+                type = lib.types.deferredModule;
+                default = {};
+                description = ''
+                  Home Manager configuration.
+                '';
+              };
+
+              hmUsername = lib.mkOption {
+                type = lib.types.str;
+                default = "user";
+                description = ''
+                  Username used for hm.
+                '';
+              };
+
+              hmImports = lib.mkOption {
+                type = with types; listOf raw;
+                default = [];
+                description = "Home Manager modules.";
+              };
             };
 
-            hmUsername = lib.mkOption {
-              type = lib.types.str;
-              default = "user";
-              description = ''
-                Username used for hm.
-              '';
+            config = {
+              _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
+              osModules = [inputs.home-manager.nixosModules.home-manager];
+              os.home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                users.${config.hmUsername} = config.hm;
+                sharedModules = config.hmModules;
+                extraSpecialArgs = {inherit inputs;};
+              };
             };
+          })
 
-            hmModules = lib.mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "Home Manager modules.";
-            };
-          };
-
-          config = {
-            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-            osModules = [inputs.home-manager.nixosModules.home-manager];
-            os.home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              users.${config.hmUsername} = config.hm;
-              sharedModules = config.hmModules;
-              extraSpecialArgs = {inherit inputs;};
-            };
-          };
-        })
+          (lib.doRename {
+            from = ["hmModules"];
+            to = ["hmImports"];
+            visible = true;
+            warn = false;
+            use = x: x;
+          })
+        ]
       )
       ++ modules;
   }
