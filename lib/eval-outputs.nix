@@ -45,8 +45,26 @@ with inputs.nixpkgs.lib; let
       osModules = osModules ++ config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
       hmModules = hmModules ++ config.hmModules or [] ++ configHmModules;
     };
+
+    showWarnings = module:
+      foldl (
+        module: warning: builtins.trace "[1;31mwarning: ${warning}[0m" module
+      )
+      module
+      module.config.warnings;
+
+    showErrors = module: let
+      failedAssertions = lists.map (x: x.message) (filter (x: !x.assertion) module.config.assertions);
+    in
+      if failedAssertions == []
+      then module
+      else
+        throw ''
+
+          Failed assertions:
+          ${concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}'';
   in
-    module;
+    showErrors (showWarnings module);
 
   explicitOutputs = outputs inputs;
   nixosConfigurations =

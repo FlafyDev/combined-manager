@@ -136,6 +136,7 @@ in
             };
           }
         )
+        "${nixpkgs}/nixos/modules/misc/assertions.nix"
         (doRename {
           from = ["osModules"];
           to = ["osImports"];
@@ -182,7 +183,7 @@ in
                 useUserPackages = true;
                 extraSpecialArgs = specialArgs;
                 sharedModules = hmModules;
-		users.${config.hmUsername} = config.hm;
+                users.${config.hmUsername} = config.hm;
               };
             };
           }
