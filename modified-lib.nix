@@ -824,5 +824,5 @@ with lib; let
     # FIXME: handle mkOrder?
     else [cfg];
 in {
-  inherit evalModules;
+  inherit evalModules collectModules;
 }
