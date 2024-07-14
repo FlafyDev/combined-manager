@@ -1,5 +1,10 @@
 {
+  system ? null,
   useHomeManager ? true,
+  specialArgs ? {},
+  modules ? [],
+  osModules ? [],
+  hmModules ? [],
   configurations,
   outputs ? (_: {}),
   ...
@@ -33,11 +38,12 @@ with inputs.nixpkgs.lib; let
 
     useHm = config.useHomeManager or useHomeManager;
     module = evalModules {
-      inherit (config) system modules;
+      system = config.system or system;
       prefix = config.prefix or [];
-      specialArgs = {inherit inputs useHm configs;} // config.specialArgs or {};
-      osModules = config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
-      hmModules = config.hmModules or [] ++ configHmModules;
+      specialArgs = {inherit inputs useHm configs;} // specialArgs // config.specialArgs or {};
+      modules = modules ++ config.modules or [];
+      osModules = osModules ++ config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
+      hmModules = hmModules ++ config.hmModules or [] ++ configHmModules;
     };
   in
     module;
@@ -53,11 +59,5 @@ with inputs.nixpkgs.lib; let
         config = config.config.os;
       })
     (let configs = mapAttrs (_: evalModule configs) configurations; in configs);
-
-  result =
-    explicitOutputs
-    // {
-      nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or {};
-    };
 in
-  result
+  explicitOutputs // {nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or {};}
