@@ -8,6 +8,7 @@
   prefix ? [],
 }: let
   inherit (inputs.nixpkgs) lib;
+  modifiedLib = import ./modified-lib.nix lib;
   inherit (lib) mkOption types evalModules;
   osModule = let
     baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
@@ -27,7 +28,7 @@
         ];
     };
 in
-  evalModules {
+  modifiedLib.evalModules {
     inherit prefix;
     specialArgs =
       {
