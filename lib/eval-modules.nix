@@ -5,35 +5,33 @@
   modules ? [],
   osModules ? [],
   hmModules ? [],
-}: let
+}:
+with specialArgs.inputs.nixpkgs.lib; let
   inherit (specialArgs.inputs) nixpkgs;
   inherit (nixpkgs) lib;
   modifiedLib = import ./modified-lib.nix lib;
   inherit (specialArgs) useHm;
-  inherit (lib) mkOption types;
+  inherit mkOption types;
 
-  osModule = let
-    baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
+  osBaseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
+  osExtraModules = let
+    e = builtins.getEnv "NIXOS_EXTRA_MODULE_PATH";
   in
-    types.submoduleWith {
-      description = "Nixpkgs modules";
-      specialArgs =
-        specialArgs
-        // {
-          modulesPath = "${nixpkgs}/nixos/modules";
-          inherit baseModules;
-          modules = osModules; # TODO: figure out if this is really what it should be equal to.
-        };
-      modules =
-        baseModules
-        ++ osModules
-        ++ [
-          {nixpkgs.system = system;}
-        ];
-    };
+    optional (e != "") (import e);
+  allOsModules = osBaseModules ++ osExtraModules ++ osModules;
+
+  osSpecialArgs =
+    {
+      modulesPath = "${nixpkgs}/nixos/modules";
+      baseModules = osBaseModules;
+      extraModules = osExtraModules;
+      modules = osModules;
+    }
+    // specialArgs;
 in
   modifiedLib.evalModules {
     inherit prefix;
+    class = "combinedManager";
     specialArgs =
       {
         combinedManager = import ../.;
@@ -42,51 +40,103 @@ in
       // specialArgs;
     modules =
       [
-        ({config, ...}: {
-          options = {
-            inputs = mkOption {
-              type = with types; attrs;
-              default = {};
-              description = "Inputs";
+        (
+          {
+            options,
+            config,
+            ...
+          }: {
+            options = {
+              inputs = mkOption {
+                type = with types; attrsOf raw;
+                default = {};
+                description = "Inputs";
+              };
+
+              osImports = mkOption {
+                type = with types; listOf raw;
+                default = [];
+                description = "NixOS modules.";
+              };
+
+              os = mkOption {
+                type = types.submoduleWith {
+                  class = "nixos";
+                  specialArgs = osSpecialArgs;
+                  modules = allOsModules;
+                };
+                default = {};
+                visible = "shallow";
+                description = "NixOS configuration.";
+              };
             };
 
-            osImports = mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "NixOS modules.";
-            };
+            config = {
+              _module.args = {
+                pkgs =
+                  (evalModules {
+                    modules = [
+                      "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                      {nixpkgs = builtins.removeAttrs config.os.nixpkgs ["pkgs" "flake"];}
+                    ];
+                  })
+                  ._module
+                  .args
+                  .pkgs;
 
-            os = lib.mkOption {
-              type = osModule;
-              default = {};
-              visible = "shallow";
-              description = "NixOS configuration.";
-            };
-          };
+                osOptions = let
+                  enhanceOption = _: option:
+                  # TODO Support listOf, functionTo, and standalone submodules
+                    if
+                      (option.type.name == "attrsOf" || option.type.name == "lazyAttrsOf")
+                      && option.type.nestedTypes.elemType.name == "submodule"
+                    then
+                      option
+                      // {
+                        __functor = self: name:
+                          mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                          (evalModules {modules = [{_module.args.name = name;}] ++ self.type.getSubModules;}).options;
+                      }
+                    else option;
+                in
+                  mapAttrsRecursiveCond (x: !isOption x) enhanceOption
+                  (evalModules {
+                    specialArgs = osSpecialArgs;
+                    modules =
+                      allOsModules
+                      ++ [
+                        (
+                          let
+                            osOptions = options.os.type.getSubOptions [];
+                            filteredOsOptions =
+                              (removeAttrs osOptions ["_module"])
+                              // {
+                                nixpkgs = removeAttrs osOptions.nixpkgs ["pkgs"];
+                              };
+                            # TODO Try relying on option.isDefined instead of the description
+                            filteredOptions =
+                              filterAttrsRecursive (
+                                _: x: !isOption x || !hasPrefix "Alias of" x.description or ""
+                              )
+                              filteredOsOptions;
+                          in
+                            mapAttrsRecursiveCond (x: !isOption x) (path: _: getAttrFromPath path config.os) filteredOptions
+                        )
+                      ];
+                  })
+                  .options;
 
-          config = {
-            _module.args = {
-              pkgs =
-                (lib.evalModules {
-                  modules = [
-                    "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
-                    {nixpkgs = builtins.removeAttrs config.os.nixpkgs ["pkgs" "flake"];}
-                  ];
-                })
-                ._module
-                .args
-                .pkgs;
+                osConfig = config.os;
+              };
 
-              osConfig = config.os;
+              os = {
+                system.nixos.versionSuffix = ".${lib.substring 0 8 (nixpkgs.lastModifiedDate or nixpkgs.lastModified or "19700101")}.${nixpkgs.shortRev or "dirty"}";
+                system.nixos.revision = lib.mkIf (nixpkgs ? rev) nixpkgs.rev;
+              };
             };
-
-            os = {
-              system.nixos.versionSuffix = ".${lib.substring 0 8 (nixpkgs.lastModifiedDate or nixpkgs.lastModified or "19700101")}.${nixpkgs.shortRev or "dirty"}";
-              system.nixos.revision = lib.mkIf (nixpkgs ? rev) nixpkgs.rev;
-            };
-          };
-        })
-        (lib.doRename {
+          }
+        )
+        (doRename {
           from = ["osModules"];
           to = ["osImports"];
           visible = true;
@@ -94,48 +144,50 @@ in
           use = x: x;
         })
       ]
-      ++ lib.optionals useHm
-      [
-        ({
-          options,
-          config,
-          osConfig,
-          lib,
-          ...
-        }: {
-          options = {
-            hmUsername = lib.mkOption {
-              type = types.str;
-              default = "user";
-              description = "Username used for Home Manager.";
+      ++ optionals useHm [
+        (
+          {
+            osOptions,
+            config,
+            osConfig,
+            ...
+          }: {
+            options = {
+              hmUsername = mkOption {
+                type = types.str;
+                description = "Username used for Home Manager.";
+              };
+
+              hmImports = mkOption {
+                type = with types; listOf raw;
+                default = [];
+                description = "Home Manager modules.";
+              };
+
+              hm = mkOption {
+                type = types.deferredModule;
+                default = {};
+                description = "Home Manager configuration.";
+              };
             };
 
-            hmImports = lib.mkOption {
-              type = with types; listOf raw;
-              default = [];
-              description = "Home Manager modules.";
-            };
+            config = {
+              _module.args = {
+                hmOptions = osOptions.home-manager.users config.hmUsername;
+                hmConfig = osConfig.home-manager.users.${config.hmUsername};
+              };
 
-            hm = lib.mkOption {
-              type = types.deferredModule;
-              default = {};
-              description = "Home Manager configuration.";
+              os.home-manager = {
+                useGlobalPkgs = true;
+                useUserPackages = true;
+                extraSpecialArgs = specialArgs;
+                sharedModules = hmModules;
+		users.${config.hmUsername} = config.hm;
+              };
             };
-          };
-
-          config = {
-            _module.args.hmConfig = osConfig.home-manager.users.${config.hmUsername};
-
-            os.home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              extraSpecialArgs = specialArgs;
-              sharedModules = hmModules;
-              users.${config.hmUsername} = config.hm;
-            };
-          };
-        })
-        (lib.doRename {
+          }
+        )
+        (doRename {
           from = ["hmModules"];
           to = ["hmImports"];
           visible = true;
