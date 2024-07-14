@@ -3,6 +3,7 @@
     description,
     lockFile,
     initialInputs ? {},
+    useHomeManager ? true,
     configurations,
     outputs ? (_: {}),
   } @ args: {

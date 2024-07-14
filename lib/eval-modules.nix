@@ -1,26 +1,29 @@
 {
-  modules ? [],
-  inputs,
   system,
-  useHomeManager ? true,
+  prefix ? [],
   specialArgs ? {},
+  modules ? [],
   osModules ? [],
   hmModules ? [],
-  prefix ? [],
 }: let
-  inherit (inputs.nixpkgs) lib;
+  inherit (specialArgs.inputs) nixpkgs;
+  inherit (nixpkgs) lib;
   modifiedLib = import ./modified-lib.nix lib;
-  inherit (lib) mkOption types evalModules;
+  inherit (specialArgs) useHm;
+  inherit (lib) mkOption types;
+
   osModule = let
-    baseModules = import "${inputs.nixpkgs}/nixos/modules/module-list.nix";
+    baseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
   in
     types.submoduleWith {
       description = "Nixpkgs modules";
-      specialArgs = {
-        inherit baseModules;
-        modulesPath = "${inputs.nixpkgs}/nixos/modules";
-        modules = osModules; # TODO: figure out if this is really what it should be equal to.
-      };
+      specialArgs =
+        specialArgs
+        // {
+          modulesPath = "${nixpkgs}/nixos/modules";
+          inherit baseModules;
+          modules = osModules; # TODO: figure out if this is really what it should be equal to.
+        };
       modules =
         baseModules
         ++ osModules
@@ -33,19 +36,12 @@ in
     inherit prefix;
     specialArgs =
       {
-        inherit inputs;
-        combinedManager = ./.;
+        combinedManager = import ../.;
+        combinedManagerPath = ./.;
       }
       // specialArgs;
     modules =
       [
-        ({lib, ...}: let
-          self = inputs.nixpkgs;
-        in {
-          os.system.nixos.versionSuffix = ".${lib.substring 0 8 (self.lastModifiedDate or self.lastModified or "19700101")}.${self.shortRev or "dirty"}";
-          os.system.nixos.revision = lib.mkIf (self ? rev) self.rev;
-        })
-
         ({config, ...}: {
           options = {
             inputs = mkOption {
@@ -66,51 +62,28 @@ in
               visible = "shallow";
               description = "NixOS configuration.";
             };
-
-            combinedManager = {
-              osPassedArgs = lib.mkOption {
-                type = types.attrs;
-                default = {
-                  osOptions = "options";
-                  pkgs = "pkgs";
-                };
-                visible = "hidden";
-              };
-              osExtraPassedArgs = lib.mkOption {
-                type = types.attrs;
-                default = {};
-                visible = "hidden";
-              };
-            };
           };
 
           config = {
-            _module.args =
-              config.os._combinedManager.args
-              // {
-                osConfig = config.os;
-              };
+            _module.args = {
+              pkgs =
+                (lib.evalModules {
+                  modules = [
+                    "${nixpkgs}/nixos/modules/misc/nixpkgs.nix"
+                    {nixpkgs = builtins.removeAttrs config.os.nixpkgs ["pkgs" "flake"];}
+                  ];
+                })
+                ._module
+                .args
+                .pkgs;
 
-            os = let
-              cmConfig = config;
-            in
-              {config, ...} @ args: {
-                options = {
-                  _combinedManager.args = mkOption {
-                    type = types.attrs;
-                    default = {};
-                    visible = "hidden";
-                  };
-                };
-                config._combinedManager.args =
-                  lib.mapAttrs (
-                    _name: value: config._module.args.${value} or args.${value}
-                  )
-                  (
-                    cmConfig.combinedManager.osExtraPassedArgs
-                    // cmConfig.combinedManager.osPassedArgs
-                  );
-              };
+              osConfig = config.os;
+            };
+
+            os = {
+              system.nixos.versionSuffix = ".${lib.substring 0 8 (nixpkgs.lastModifiedDate or nixpkgs.lastModified or "19700101")}.${nixpkgs.shortRev or "dirty"}";
+              system.nixos.revision = lib.mkIf (nixpkgs ? rev) nixpkgs.rev;
+            };
           };
         })
         (lib.doRename {
@@ -121,7 +94,7 @@ in
           use = x: x;
         })
       ]
-      ++ lib.optionals useHomeManager
+      ++ lib.optionals useHm
       [
         ({
           options,
@@ -156,9 +129,9 @@ in
             os.home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
-              users.${config.hmUsername} = config.hm;
+              extraSpecialArgs = specialArgs;
               sharedModules = hmModules;
-              extraSpecialArgs = {inherit inputs;};
+              users.${config.hmUsername} = config.hm;
             };
           };
         })

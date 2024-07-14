@@ -1,4 +1,5 @@
 {
+  useHomeManager ? true,
   configurations,
   outputs ? (_: {}),
   ...
@@ -9,11 +10,11 @@ with inputs.nixpkgs.lib; let
   evalModules = import ./eval-modules.nix;
 
   evalModule = configs: config: let
-    configuration' = (builtins.removeAttrs config ["inputOverrides"]) // {inputs = inputs // ((config.inputOverrides or (_: {})) inputs);};
+    finalInputs = inputs // ((config.inputOverrides or (_: {})) inputs);
 
     configModules = modifiedLib.collectModules null "" config.modules {
       inherit lib;
-      inherit (configuration') inputs;
+      inputs = finalInputs;
       options = null;
       config = null;
     };
@@ -30,11 +31,14 @@ with inputs.nixpkgs.lib; let
     configOsModules = lib.foldl (defs: module: defs ++ findImports "osImports" "osModules" module.config) [] configModules;
     configHmModules = lib.foldl (defs: module: defs ++ findImports "hmImports" "hmModules" module.config) [] configModules;
 
-    module = evalModules (configuration'
-      // {
-        osModules = configOsModules ++ lib.optional config.useHomeManager or true inputs.home-manager.nixosModules.default;
-        hmModules = configHmModules;
-      });
+    useHm = config.useHomeManager or useHomeManager;
+    module = evalModules {
+      inherit (config) system modules;
+      prefix = config.prefix or [];
+      specialArgs = {inherit inputs useHm configs;} // config.specialArgs or {};
+      osModules = config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
+      hmModules = config.hmModules or [] ++ configHmModules;
+    };
   in
     module;
 
