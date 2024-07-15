@@ -1,6 +1,6 @@
 {
   mkFlake = {
-    description,
+    description ? "NixOS configuration",
     lockFile,
     initialInputs ? {},
     defaultSystem ? null,
