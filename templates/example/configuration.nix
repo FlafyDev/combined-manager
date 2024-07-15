@@ -2,8 +2,6 @@
   lib,
   pkgs,
   osConfig,
-  hmConfig,
-  inputs,
   ...
 }: {
   # Adding inputs
@@ -11,22 +9,15 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  # Adding top level system modules
+  # Adding NixOS modules
   osModules = [
     ./hardware-configuration.nix
   ];
 
-  # Adding home modules
+  # Adding Home Manager modules
   hmModules = [];
 
-  # Setting overlays
-  os.nixpkgs.overlays = [
-    (_final: prev: {
-      customCat = prev.bat;
-    })
-  ];
-
-  # Using `os` to set Nixpkgs options.
+  # Using `os` to set NixOS options.
   os = {
     users.users.root = {
       group = "root";
@@ -46,7 +37,7 @@
       customCat
     ];
 
-  # Set Home Manager username
+  # Set the Home Manager username
   hmUsername = "a";
 
   # Using `hm` to set Home Manager options.

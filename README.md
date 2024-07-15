@@ -5,6 +5,8 @@ Combined Manager provides a new structure for personal NixOS configurations.
 - [Introduction](#introduction-no-separation)
 - [Module structure](#module-structure)
 - [Option copying](#option-copying)
+- [Flake structure](#flake-structure)
+- [Automatic updates](#automatic-updates)
 - [Current limitations](#current-limitations)
 - [Getting started](#getting-started)
 - [Stability](#stability)
@@ -40,25 +42,25 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
   combinedManagerPath, # Path to the root of Combined Manager
   ...
 }: {
-  inputs = { name.url = "..."; }; # Add inputs
+  inputs = {name.url = "...";}; # Add inputs
 
-  imports = [ ];
-  osImports = [ ]; # Import NixOS modules
-  hmImports = [ ]; # Import Home Manager modules
+  imports = [];
+  osImports = []; # Import NixOS modules
+  hmImports = []; # Import Home Manager modules
 
-  options = { }; # Declare Combined Manager options
+  options = {}; # Declare Combined Manager options
 
   config = {
-    inputs = { name.url = "..."; }; # You can also add inputs here
+    inputs = {name.url = "...";}; # You can also add inputs here
 
-    osModules = [ ]; # You can also import NixOS modules here
-    hmModules = [ ]; # You can also import Home Manager modules here
+    osModules = []; # You can also import NixOS modules here
+    hmModules = []; # You can also import Home Manager modules here
 
-    os = { }; # Define NixOS options
+    os = {}; # Define NixOS options
 
     hmUsername = "myname"; # Set the Home Manager username (must be defined if Home Manager is enabled for this configuration)
 
-    hm = { }; # Define Home Manager options
+    hm = {}; # Define Home Manager options
   };
 }
 ```
@@ -93,6 +95,76 @@ When declaring options for your Combined Manager modules, sometimes you just wan
 }
 ```
 
+## Flake structure
+```nix
+let
+  combinedManager = import (builtins.fetchTarball {
+    url = "https://github.com/flafydev/combined-manager/archive/REV.tar.gz"; # Replace REV with the current revision of Combined Manager.
+    sha256 = "HASH"; # Replace HASH with the corresponding hash.
+  });
+in
+  combinedManager.mkFlake {
+    description = "My flake description"; # Optional, defaults to "NixOS configuration"
+    lockFile = ./flake.lock;
+
+    initialInputs = {}; # Optional
+
+    # These set defaults that can be overridden per config.
+    defaultSystem = "x86_64-linux"; # Must be specifieed either here or once per config.
+    useHomeManager = true; # Defaults to true.
+
+    # These are merged with the attributes specified per config. They are all optional.
+    globalSpecialArgs = {};
+    globalModules = [];
+    globalOsModules = [];
+    globalHmModules = [];
+
+    # The NixOS configurations managed by Combined Manager.
+    configurations = {
+      primary = {
+        # Attributes from the attrset created by this function override the normal inputs.
+        # This can be used to override an input for a shared module on a per-configuration basis.
+        inputOverrides = inputs: {}; # Optional
+
+        system = "x86_64-linux"; # Only optional if defaultSystem is defined.
+        useHomeManager = true; # If undefined, the mkFlake useHomeManager attribute is used, which defaults to true.
+
+        specialArgs = {}; # The attributes defined in this attrset are passed to all Combined Manager, NixOS and Home Manager modules, in addition to the default args.
+
+        # Add root Combined Manager, NixOS and home manager modules. These attributes are all optional.
+        modules = [];
+        osModules = [];
+        hmModules = [];
+      };
+
+      # You can define as many configurations as you like.
+      other = {};
+    };
+
+    outputs = {self, ...} @ inputs: {}; # Like normal flake outputs. They're optional, but if they are defined, they'll be merged with the nixosConfigurations created by Combined Manager.
+  }
+```
+
+## Automatic updates
+The following is an example of a `flake.nix` that automatically updates Combined Manager by specifying it as a flake input.
+Note that you must already have Combined Manager in your `flake.lock` for this to work, so make sure you add it as an input and run `nix flake metadata` before updating your `flake.nix`.
+If you accidentally delete `flake.lock`, you will need to hardcode `rev` and `narHash` before regenerating it, as the input evaluation relies on Combined Manager.
+```nix
+let
+  inherit ((builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.combined-manager.locked) rev narHash;
+  combinedManager = import (
+    builtins.fetchTarball {
+      url = "https://github.com/Noah765/combined-manager/archive/${rev}.tar.gz";
+      sha256 = narHash;
+    }
+  );
+in
+  combinedManager.mkFlake {
+    lockFile = ./flake.lock;
+    configurations = {};
+  }
+```
+
 ## Current limitations
 - Only a single user supported when using Home Manager
 - Requires Nix to be patched
@@ -100,8 +172,8 @@ When declaring options for your Combined Manager modules, sometimes you just wan
 
 ## Getting started
 1. Patch Nix with one of the patches in the `nix-patches` directory. See more in the [patching nix section](#patching-nix).
-2. Use one of our flake templates with `nix flake init -t github:FlafyDev/combined-manager#example`, or have a look at an example to see how to use Combined Manager.
-3. Start using Combined Manager!
+2. Use one of our flake templates with `nix flake init -t github:FlafyDev/combined-manager#example`, create your own using the docs, or take a look at an example to see a complete configuration using Combined Manager.
+3. See how Combined Manager can make your configuration cleaner!
 
 ## Stability
 At the time of writing, stable _enough_.
@@ -128,7 +200,7 @@ nix.package = pkgs.nix.overrideAttrs (old: {
     ++ [
       (pkgs.fetchurl {
         url = "https://raw.githubusercontent.com/flafydev/combined-manager/main/nix-patches/evaluable-flake.patch";
-        hash = "sha256-UZ5hXI1w1mOEe0Bp5rSfeB4jfnwxnNEXJWir4dQGyyo=";
+        hash = "HASH"; # Replace HASH with the hash of the patch you patch you want to apply.
       })
     ];
 });
@@ -136,6 +208,6 @@ nix.package = pkgs.nix.overrideAttrs (old: {
 Once you're using Combined Manager, you can get the patch using the `combinedManagerPath` module arg:
 ```nix
 nix.package = pkgs.nix.overrideAttrs (old: {
-  patches = old.patches or [] ++ ["${combinedManagerPath}/evaluable-flake.patch"];
+  patches = old.patches or [] ++ ["${combinedManagerPath}/nix-patches/evaluable-flake.patch"];
 });
 ```
