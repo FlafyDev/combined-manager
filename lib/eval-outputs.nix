@@ -65,7 +65,7 @@ with rawInputs.nixpkgs.lib; let
   in
     showErrors (showWarnings module);
 
-  explicitOutputs = outputs inputs;
+  explicitOutputs = outputs rawInputs;
   nixosConfigurations =
     mapAttrs
     (_: config:
