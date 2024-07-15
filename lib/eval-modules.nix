@@ -30,14 +30,8 @@ with specialArgs.inputs.nixpkgs.lib; let
     // specialArgs;
 in
   modifiedLib.evalModules {
-    inherit prefix;
+    inherit prefix specialArgs;
     class = "combinedManager";
-    specialArgs =
-      {
-        combinedManager = import ../.;
-        combinedManagerPath = ./.;
-      }
-      // specialArgs;
     modules =
       [
         (

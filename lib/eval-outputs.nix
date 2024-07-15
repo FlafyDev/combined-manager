@@ -39,7 +39,14 @@ with rawInputs.nixpkgs.lib; let
     module = evalModules {
       system = config.system or defaultSystem;
       prefix = config.prefix or [];
-      specialArgs = {inherit inputs useHm configs;} // globalSpecialArgs // config.specialArgs or {};
+      specialArgs =
+        {
+          inherit inputs useHm configs;
+          combinedManager = import ../.;
+          combinedManagerPath = ../.;
+        }
+        // globalSpecialArgs
+        // config.specialArgs or {};
       modules = globalModules ++ config.modules or [];
       osModules = globalOsModules ++ config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
       hmModules = globalHmModules ++ config.hmModules or [] ++ configHmModules;
