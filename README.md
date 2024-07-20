@@ -4,7 +4,7 @@ Combined Manager provides a new structure for personal NixOS configurations.
 
 - [Introduction](#introduction-no-separation)
 - [Module structure](#module-structure)
-- [Option copying](#option-copying)
+- [Accessing option declarations](#accessing-option-declarations)
 - [Flake structure](#flake-structure)
 - [Automatic updates](#automatic-updates)
 - [Current limitations](#current-limitations)
@@ -32,12 +32,12 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
   pkgs,
   useHm, # Whether the current configuration uses Home Manager
   options,
-  osOptions,
-  hmOptions,
+  osOptions, # For [accessing NixOS option declarations](#accessing-option-declarations)
+  hmOptions, # For [accessing Home Manager option declarations](#accessing-option-declarations)
   configs, # The results of all NixOS / Combined Manager configurations
   config,
-  osConfig,
-  hmConfig,
+  osConfig, # NixOS config
+  hmConfig, # Home Manager config
   combinedManager, # The root of Combined Manager
   combinedManagerPath, # Path to the root of Combined Manager
   ...
@@ -65,35 +65,9 @@ Combined Manager breaks this pattern by providing modules that can add inputs, i
 }
 ```
 
-## Option copying
-When declaring options for your Combined Manager modules, sometimes you just want to copy a NixOS or Home Manager option. Combined Manager makes this easy and straightforward, even when working with `attrsOf` and submodules. Below is an example impermanence module that makes use of this feature. Note that the options being copied are complex, so you wouldn't want to just copy and paste them into your option declarations.
-```nix
-{
-  lib,
-  inputs,
-  osOptions,
-  hmOptions,
-  ...
-}: {
-  inputs.impermanence.url = "github:nix-community/impermanence";
-
-  osImports = [inputs.impermanence.nixosModules.impermanence];
-  hmImports = [inputs.impermanence.nixosModules.home-manager.impermanence];
-
-  options.impermanence = let
-    os = osOptions.environment.persistence "/persist/system";
-    hm = hmOptions.home.persistence "/persist/home";
-  in {
-    enable = lib.mkEnableOption "impermanence";
-    os = {
-      inherit (os) files directories; # Copy the `files` and `directories` options that you would define at `os.environment.persistence."/persist/system"`
-    };
-    hm = {
-      inherit (hm) files directories; # Copy the `files` and `directories` options that you would define at `hm.home.persistence."/persist/home"`
-    };
-  };
-}
-```
+## Accessing option declarations
+The module system supports creating renamed options or creating aliases of options using functions like `mkRenamedOptionModule` or `mkAliasOptionModule`, but otherwise it is very hard to access option types or default values for more advanced use cases, as extracting them from the `options` arg is quite hard. An example of such a use case would be copying an option and changing the description, adding a default value, or slightly changing the type. If you need to conditionally include definitions, or generally reuse parts of an option declaration without simply forwarding definitions, you are out of luck using the module system.
+Combined Manager makes it easy and straightforward to access option declarations, even when working with types like `attrsOf` and submodules. It does this through the `osOptions` and `hmOptions` args. For example, the declaration for the option whose configuration you would access with `os.some.option.path.submodule.name.option` can be accessed with `(osOptions.some.option.path"name").option`.
 
 ## Flake structure
 ```nix
