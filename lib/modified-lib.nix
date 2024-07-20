@@ -24,6 +24,21 @@ lib:
 with lib; let
   inherit (lib.options) showDefs;
 
+  showDeclPrefix = loc: decl: prefix: " - option(s) with prefix `${showOption (loc ++ [prefix])}' in module `${decl._file}'";
+  showRawDecls = loc: decls:
+    concatStringsSep "\n"
+    (sort (a: b: a < b)
+      (
+        concatMap
+        (
+          decl:
+            map
+            (showDeclPrefix loc decl)
+            (attrNames decl.options)
+        )
+        decls
+      ));
+
   /*
   See https://nixos.org/manual/nixpkgs/unstable/#module-system-lib-evalModules
     or file://./../doc/module-system/module-system.chapter.md
