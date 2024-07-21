@@ -1,6 +1,7 @@
 {
   lockFile,
   initialInputs ? {},
+  globalModules ? [],
   configurations,
   ...
 } @ args: let
@@ -14,7 +15,7 @@ in
       value = initialInputs;
     };
 
-    directConfigModules = foldlAttrs (modules: _: config: modules ++ config.modules) [] configurations;
+    directConfigModules = foldlAttrs (modules: _: config: modules ++ config.modules) globalModules configurations;
     configModules = modifiedLib.collectModules "combinedManager" "" directConfigModules {
       inherit lib;
       options = null;
