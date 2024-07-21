@@ -47,10 +47,21 @@ in
                 description = "Inputs";
               };
 
+              hmUsername = mkOption {
+                type = types.str;
+                description = "Username used for Home Manager.";
+              };
+
               osImports = mkOption {
                 type = with types; listOf raw;
                 default = [];
                 description = "NixOS modules.";
+              };
+
+              hmImports = mkOption {
+                type = with types; listOf raw;
+                default = [];
+                description = "Home Manager modules.";
               };
 
               os = mkOption {
@@ -62,6 +73,12 @@ in
                 default = {};
                 visible = "shallow";
                 description = "NixOS configuration.";
+              };
+
+              hm = mkOption {
+                type = types.deferredModule;
+                default = {};
+                description = "Home Manager configuration.";
               };
             };
 
@@ -147,25 +164,6 @@ in
             osConfig,
             ...
           }: {
-            options = {
-              hmUsername = mkOption {
-                type = types.str;
-                description = "Username used for Home Manager.";
-              };
-
-              hmImports = mkOption {
-                type = with types; listOf raw;
-                default = [];
-                description = "Home Manager modules.";
-              };
-
-              hm = mkOption {
-                type = types.deferredModule;
-                default = {};
-                description = "Home Manager configuration.";
-              };
-            };
-
             config = {
               _module.args = {
                 hmOptions = osOptions.home-manager.users config.hmUsername;
