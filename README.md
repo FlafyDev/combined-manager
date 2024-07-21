@@ -147,7 +147,8 @@ in
 ## Getting started
 1. Patch Nix with one of the patches in the `nix-patches` directory. See more in the [patching nix section](#patching-nix).
 2. Use one of our flake templates with `nix flake init -t github:FlafyDev/combined-manager#example`, create your own using the docs, or take a look at an example to see a complete configuration using Combined Manager.
-3. See how Combined Manager can make your configuration cleaner!
+3. If you want to use the `osOptions` or `hmOptions` args, make sure you specify your host platform (using `nixpkgs.hostPlatform`) in a NixOS module, such as `hardware-configuration.nix`. If you define it in a Combined Manager module, or not at all, these args won't work.
+4. See how Combined Manager can make your configuration cleaner!
 
 ## Stability
 At the time of writing, stable _enough_.
