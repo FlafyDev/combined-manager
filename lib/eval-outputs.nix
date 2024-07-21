@@ -74,15 +74,20 @@ with rawInputs.nixpkgs.lib; let
     showErrors (showWarnings module);
 
   explicitOutputs = outputs rawInputs;
-  nixosConfigurations =
-    mapAttrs
-    (_: config:
-      config
-      // {
-        class = "nixos";
-        options = config.options.os;
-        config = config.config.os;
-      })
-    (let configs = mapAttrs (_: evalModule configs) configurations; in configs);
+
+  combinedManagerConfigurations = let configs = mapAttrs (_: evalModule configs) configurations; in configs;
+
+  nixosConfigurations = mapAttrs (_: config:
+    config
+    // {
+      class = "nixos";
+      options = config.options.os;
+      config = config.config.os;
+    })
+  combinedManagerConfigurations;
 in
-  explicitOutputs // {nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or {};}
+  explicitOutputs
+  // {
+    inherit combinedManagerConfigurations;
+    nixosConfigurations = nixosConfigurations // explicitOutputs.nixosConfigurations or {};
+  }

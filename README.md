@@ -115,7 +115,8 @@ in
       other = {};
     };
 
-    outputs = {self, ...} @ inputs: {}; # Like normal flake outputs. They're optional, but if they are defined, they'll be merged with the nixosConfigurations created by Combined Manager.
+    # Here you can optionally define additional flake outputs. The additional outputs will be merged with the combinedManagerConfigurations and nixosConfigurations created by Combined Manager.
+    outputs = {self, ...} @ inputs: {};
   }
 ```
 
