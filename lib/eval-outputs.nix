@@ -16,8 +16,9 @@ with rawInputs.nixpkgs.lib; let
 
   evalModule = configs: config: let
     inputs = rawInputs // config.inputOverrides or (_: {}) rawInputs;
+    modules = globalModules ++ config.modules or [];
 
-    configModules = modifiedLib.collectModules null "" config.modules {
+    configModules = modifiedLib.collectModules null "" modules {
       inherit lib inputs;
       options = null;
       config = null;
@@ -47,7 +48,7 @@ with rawInputs.nixpkgs.lib; let
         }
         // globalSpecialArgs
         // config.specialArgs or {};
-      modules = globalModules ++ config.modules or [];
+      inherit modules;
       osModules = globalOsModules ++ config.osModules or [] ++ configOsModules ++ optional useHm inputs.home-manager.nixosModules.default;
       hmModules = globalHmModules ++ config.hmModules or [] ++ configHmModules;
     };
