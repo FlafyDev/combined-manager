@@ -77,14 +77,24 @@ with rawInputs.nixpkgs.lib; let
 
   combinedManagerConfigurations = let configs = mapAttrs (_: evalModule configs) configurations; in configs;
 
-  nixosConfigurations = mapAttrs (_: config:
-    config
-    // {
-      class = "nixos";
-      options = config.options.os;
-      config = config.config.os;
-    })
-  combinedManagerConfigurations;
+  nixosConfigurations = let
+    withExtraAttrs = config:
+      config
+      // {
+        extraArgs = {};
+        inherit (config._module.args) pkgs;
+        inherit lib;
+        extendModules = args: withExtraAttrs (config.extendModules args);
+      };
+  in
+    mapAttrs (_: config:
+      withExtraAttrs (config
+        // {
+          class = "nixos";
+          options = config.options.os;
+          config = config.config.os;
+        }))
+    combinedManagerConfigurations;
 in
   explicitOutputs
   // {
