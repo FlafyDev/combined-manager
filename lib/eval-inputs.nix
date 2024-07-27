@@ -35,13 +35,11 @@ in
           moduleDefs = findDefs module.config;
         in
           defs
-          ++ optionals (moduleDefs != []) (
-            map (def: {
+          ++ optionals (moduleDefs != []) (map (def: {
               file = module._file;
               value = def;
             })
-            moduleDefs
-          )
+            moduleDefs)
       ) []
       configModules;
 
@@ -57,16 +55,13 @@ in
   in
     foldlAttrs (
       inputs: inputName: _: let
-        defs =
-          foldl (
-            defs: def:
-              defs
-              ++ (optional (def.value ? ${inputName}) {
-                file = def.file;
-                value = def.value.${inputName};
-              })
-          ) []
-          typeCheckedInputDefs;
+        defs = foldl (defs: def:
+          defs
+          ++ (optional (def.value ? ${inputName}) {
+            file = def.file;
+            value = def.value.${inputName};
+          })) []
+        typeCheckedInputDefs;
         firstDef = head defs;
         areDefsEqual = all (def: firstDef.value == def.value) defs;
       in

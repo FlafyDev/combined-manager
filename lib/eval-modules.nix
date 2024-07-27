@@ -13,10 +13,7 @@ with specialArgs.inputs.nixpkgs.lib; let
   inherit mkOption types;
 
   osBaseModules = import "${nixpkgs}/nixos/modules/module-list.nix";
-  osExtraModules = let
-    e = builtins.getEnv "NIXOS_EXTRA_MODULE_PATH";
-  in
-    optional (e != "") (import e);
+  osExtraModules = let e = builtins.getEnv "NIXOS_EXTRA_MODULE_PATH"; in optional (e != "") (import e);
   allOsModules = osBaseModules ++ osExtraModules ++ osModules;
 
   osSpecialArgs =
@@ -138,13 +135,7 @@ with specialArgs.inputs.nixpkgs.lib; let
           }
         )
         "${nixpkgs}/nixos/modules/misc/assertions.nix"
-        (doRename {
-          from = ["osModules"];
-          to = ["osImports"];
-          visible = true;
-          warn = false;
-          use = x: x;
-        })
+        (mkAliasOptionModule ["osModules"] ["osImports"])
       ]
       ++ optionals useHm [
         (
@@ -154,29 +145,21 @@ with specialArgs.inputs.nixpkgs.lib; let
             osConfig,
             ...
           }: {
-            config = {
-              _module.args = {
-                hmOptions = osOptions.home-manager.users config.hmUsername;
-                hmConfig = osConfig.home-manager.users.${config.hmUsername};
-              };
+            _module.args = {
+              hmOptions = osOptions.home-manager.users config.hmUsername;
+              hmConfig = osConfig.home-manager.users.${config.hmUsername};
+            };
 
-              os.home-manager = {
-                useGlobalPkgs = true;
-                useUserPackages = true;
-                extraSpecialArgs = specialArgs;
-                sharedModules = hmModules;
-                users.${config.hmUsername} = config.hm;
-              };
+            os.home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              extraSpecialArgs = specialArgs;
+              sharedModules = hmModules;
+              users.${config.hmUsername} = config.hm;
             };
           }
         )
-        (doRename {
-          from = ["hmModules"];
-          to = ["hmImports"];
-          visible = true;
-          warn = false;
-          use = x: x;
-        })
+        (mkAliasOptionModule ["hmModules"] ["hmImports"])
       ]
       ++ modules;
   };
