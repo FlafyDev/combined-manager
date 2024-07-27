@@ -1,5 +1,4 @@
 {
-  defaultSystem ? null,
   useHomeManager ? true,
   globalSpecialArgs ? {},
   globalModules ? [],
@@ -39,7 +38,6 @@ with rawInputs.nixpkgs.lib; let
     useHm = config.useHomeManager or useHomeManager;
   in
     evalModules {
-      system = config.system or defaultSystem;
       prefix = config.prefix or [];
       specialArgs =
         {

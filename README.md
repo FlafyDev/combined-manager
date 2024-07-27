@@ -83,9 +83,7 @@ in
 
     initialInputs = {}; # Optional
 
-    # These set defaults that can be overridden per config.
-    defaultSystem = "x86_64-linux"; # Must be specifieed either here or once per config.
-    useHomeManager = true; # Defaults to true.
+    useHomeManager = true; # This sets a default that can be overridden per config. Defaults to true.
 
     # These are merged with the attributes specified per config. They are all optional.
     globalSpecialArgs = {};
@@ -100,7 +98,6 @@ in
         # This can be used to override an input for a shared module on a per-configuration basis.
         inputOverrides = inputs: {}; # Optional
 
-        system = "x86_64-linux"; # Only optional if defaultSystem is defined.
         useHomeManager = true; # If undefined, the mkFlake useHomeManager attribute is used, which defaults to true.
 
         specialArgs = {}; # The attributes defined in this attrset are passed to all Combined Manager, NixOS and Home Manager modules, in addition to the default args.

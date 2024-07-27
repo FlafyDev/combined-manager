@@ -3,7 +3,6 @@
     description ? "NixOS configuration",
     lockFile,
     initialInputs ? {},
-    defaultSystem ? null,
     useHomeManager ? true,
     globalSpecialArgs ? {},
     globalModules ? [],
@@ -20,7 +19,6 @@
   nixosSystem = {
     inputs,
     inputOverrides ? (_: {}),
-    system,
     useHomeManager ? true,
     prefix ? [],
     specialArgs ? {},

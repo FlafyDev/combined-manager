@@ -1,5 +1,4 @@
 {
-  system,
   prefix ? [],
   specialArgs ? {},
   modules ? [],

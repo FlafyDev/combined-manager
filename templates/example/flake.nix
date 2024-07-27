@@ -15,10 +15,5 @@ in
       };
     };
 
-    configurations = {
-      default = {
-        system = "x86_64-linux";
-        modules = [./configuration.nix];
-      };
-    };
+    configurations.default.modules = [./configuration.nix];
   }
