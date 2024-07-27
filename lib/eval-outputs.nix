@@ -37,7 +37,8 @@ with rawInputs.nixpkgs.lib; let
     configHmModules = lib.foldl (defs: module: defs ++ findImports "hmImports" "hmModules" module.config) [] configModules;
 
     useHm = config.useHomeManager or useHomeManager;
-    module = evalModules {
+  in
+    evalModules {
       system = config.system or defaultSystem;
       prefix = config.prefix or [];
       specialArgs =
@@ -53,29 +54,9 @@ with rawInputs.nixpkgs.lib; let
       hmModules = globalHmModules ++ config.hmModules or [] ++ configHmModules;
     };
 
-    showWarnings = module:
-      foldl (
-        module: warning: builtins.trace "[1;31mwarning: ${warning}[0m" module
-      )
-      module
-      module.config.warnings;
-
-    showErrors = module: let
-      failedAssertions = lists.map (x: x.message) (filter (x: !x.assertion) module.config.assertions);
-    in
-      if failedAssertions == []
-      then module
-      else
-        throw ''
-
-          Failed assertions:
-          ${concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}'';
-  in
-    showErrors (showWarnings module);
-
   explicitOutputs = outputs rawInputs;
 
-  combinedManagerConfigurations = let configs = mapAttrs (_: evalModule configs) configurations; in configs;
+  combinedManagerConfigurations = let configs = mapAttrs (_: config: (evalModule configs config).combinedManager) configurations; in configs;
 
   nixosConfigurations = let
     withExtraAttrs = config:
@@ -86,15 +67,9 @@ with rawInputs.nixpkgs.lib; let
         inherit lib;
         extendModules = args: withExtraAttrs (config.extendModules args);
       };
+    configs = mapAttrs (_: config: withExtraAttrs (evalModule configs config).nixos) configurations;
   in
-    mapAttrs (_: config:
-      withExtraAttrs (config
-        // {
-          class = "nixos";
-          options = config.options.os;
-          config = config.config.os;
-        }))
-    combinedManagerConfigurations;
+    configs;
 in
   explicitOutputs
   // {

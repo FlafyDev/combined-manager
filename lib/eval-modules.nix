@@ -28,8 +28,24 @@ with specialArgs.inputs.nixpkgs.lib; let
       modules = osModules;
     }
     // specialArgs;
-in
-  modifiedLib.evalModules {
+
+  evalOsModules = options:
+    evalModules {
+      class = "nixos";
+      specialArgs = osSpecialArgs;
+      modules =
+        options.os.type.getSubModules
+        ++ map ({
+          value,
+          file,
+        }: {
+          _file = file;
+          imports = [value];
+        })
+        options.os.definitionsWithLocations;
+    };
+
+  evaluatedModules = modifiedLib.evalModules {
     inherit prefix specialArgs;
     class = "combinedManager";
     modules =
@@ -110,32 +126,7 @@ in
                       }
                     else option;
                 in
-                  mapAttrsRecursiveCond (x: !isOption x) enhanceOption
-                  (evalModules {
-                    specialArgs = osSpecialArgs;
-                    modules =
-                      allOsModules
-                      ++ [
-                        (
-                          let
-                            osOptions = options.os.type.getSubOptions [];
-                            filteredOsOptions =
-                              (removeAttrs osOptions ["_module"])
-                              // {
-                                nixpkgs = removeAttrs osOptions.nixpkgs ["pkgs"];
-                              };
-                            # TODO Try relying on option.isDefined instead of the description
-                            filteredOptions =
-                              filterAttrsRecursive (
-                                _: x: !isOption x || !hasPrefix "Alias of" x.description or ""
-                              )
-                              filteredOsOptions;
-                          in
-                            mapAttrsRecursiveCond (x: !isOption x) (path: _: getAttrFromPath path config.os) filteredOptions
-                        )
-                      ];
-                  })
-                  .options;
+                  mapAttrsRecursiveCond (x: !isOption x) enhanceOption (evalOsModules options).options;
 
                 osConfig = config.os;
               };
@@ -189,4 +180,21 @@ in
         })
       ]
       ++ modules;
-  }
+  };
+
+  showWarnings = module: foldl (module: warning: builtins.trace "[1;31mwarning: ${warning}[0m" module) module module.config.warnings;
+
+  showErrors = module: let
+    failedAssertions = lists.map (x: x.message) (filter (x: !x.assertion) module.config.assertions);
+  in
+    if failedAssertions == []
+    then module
+    else
+      throw ''
+
+        Failed assertions:
+        ${concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}'';
+in rec {
+  combinedManager = showErrors (showWarnings evaluatedModules);
+  nixos = evalOsModules combinedManager.options;
+}
