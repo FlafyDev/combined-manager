@@ -18,7 +18,7 @@ with specialArgs.inputs.nixpkgs.lib; let
 
   osSpecialArgs =
     {
-      modulesPath = "${nixpkgs}/nixos/modules";
+      modulesPath = removeSuffix "/flake.nix" (builtins.unsafeGetAttrPos "lib" nixpkgs).file + "/nixos/modules";
       baseModules = osBaseModules;
       extraModules = osExtraModules;
       modules = osModules;
