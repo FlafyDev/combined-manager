@@ -1,0 +1,22 @@
+diff --git a/src/libflake/flake/flake.cc b/src/libflake/flake/flake.cc
+index fd1183514..7f0dec0fd 100644
+--- a/src/libflake/flake/flake.cc
++++ b/src/libflake/flake/flake.cc
+@@ -79,7 +79,7 @@ static std::tuple<StorePath, FlakeRef, FlakeRef> fetchOrSubstituteTree(
+ 
+ static void forceTrivialValue(EvalState & state, Value & value, const PosIdx pos)
+ {
+-    if (value.isThunk() && value.isTrivial())
++    if (value.isThunk())
+         state.forceValue(value, pos);
+ }
+ 
+@@ -223,7 +223,7 @@ static Flake readFlake(
+ 
+     // NOTE evalFile forces vInfo to be an attrset because mustBeTrivial is true.
+     Value vInfo;
+-    state.evalFile(flakePath, vInfo, true);
++    state.evalFile(flakePath, vInfo, false);
+ 
+     Flake flake {
+         .originalRef = originalRef,
