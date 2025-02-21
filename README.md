@@ -97,7 +97,7 @@ To swtich: `sudo nixos-rebuild switch --flake .#default`.
 
 ## Nix Patches 
 Combined Manager requires applying certain patches to Nix in order to work.  
-Alternatively, you can use [Nix Super](https://git.privatevoid.net/max/nix-super).  
+Alternatively, you can use [Nix Super](https://forge.privatevoid.net/max/nix-super).  
 
 #### Required: evaluable-flake.patch (2 line diff)
 This patch enables inputs(and the entire flake) to be evaluable. Solves [issue #3966](https://github.com/NixOS/nix/issues/3966).  
