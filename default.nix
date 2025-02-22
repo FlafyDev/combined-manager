@@ -1,4 +1,5 @@
 let
+
   evalModules = import ./eval-modules.nix;
 
   getLib = {lockFile}: let
@@ -47,7 +48,7 @@ let
       });
   in {inherit (evaluated) config;};
 
-  nixosSystem = args: {config = (combinedManagerSystem args).config.os;};
+  nixosSystem = args: let cmConfig = (combinedManagerSystem args).config; in {config = cmConfig.os // {inherit cmConfig;};};
 
   mkFlake = {
     lockFile,
